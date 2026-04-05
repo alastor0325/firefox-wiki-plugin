@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Periodically verify that facts in the Firefox Knowledge Wiki are still correct by re-reading cited sources. Flags stale or unverifiable claims for human review.
-version: 0.2.0
+version: 0.3.0
 user-invocable: false
 ---
 
@@ -222,7 +222,29 @@ cd $WIKI_PATH && git add verify-report.md
 
 ---
 
-## Step 6 — Update lint-log.json
+## Step 6 — Second-pass: re-verify uncertain facts
+
+After the main pass, collect all lines across the entire wiki that still carry a `<!-- verify-uncertain: ... -->` annotation:
+
+```bash
+grep -rn 'verify-uncertain' $WIKI_PATH --include='*.md' | grep -v 'bugs/'
+```
+
+For each uncertain line, spawn a focused gecko-navigator agent with a more specific prompt — give it the exact file path, line number, claim text, and the reason it was uncertain. Ask it to dig deeper: trace template specializations, follow call chains further, check related files.
+
+If the agent returns a definitive verdict:
+- **Resolved as CONFIRMED**: remove the `<!-- verify-uncertain -->` annotation. Update the fact text if the deeper trace found a more precise description.
+- **Resolved as STALE**: apply the auto-fix (Step 4 rules) and remove the annotation.
+- **Still uncertain after second pass**: leave the annotation as-is. It will be picked up again on the next verify run.
+
+Apply all file edits and stage:
+```bash
+cd $WIKI_PATH && git add -A
+```
+
+---
+
+## Step 7 — Update lint-log.json
 
 For every page that was verified (regardless of verdict), update `verify-last` in `lint-log.json`:
 
@@ -237,7 +259,7 @@ jq --arg page "components/AudioSink.md" \
 Commit all changes (updated wiki pages + lint-log.json + verify-report.md) together:
 ```bash
 cd $WIKI_PATH && git add -A \
-  && git commit -m "wiki: verify run $(date +%Y-%m-%d) — <n> stale auto-fixed, <n> uncertain flagged" \
+  && git commit -m "wiki: verify run $(date +%Y-%m-%d) — <n> stale auto-fixed, <n> uncertain resolved, <n> uncertain remaining" \
   && git push
 ```
 
@@ -254,7 +276,8 @@ Pages verified:  <n>
 Facts checked:   <n>
   Confirmed:     <n>
   Auto-fixed:    <n>  ← stale facts corrected in place
-  Uncertain:     <n>  ← flagged with <!-- verify-uncertain --> for manual review
+  Uncertain resolved: <n>  ← resolved by second-pass deeper trace
+  Uncertain remaining: <n>  ← still flagged with <!-- verify-uncertain -->
 
 Report saved to: ~/firefox-wiki/verify-report.md
 
