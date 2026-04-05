@@ -168,7 +168,7 @@ See [[log.md]] for full history.
 
 ### 8. Check wiki maintenance instruction
 
-This step ensures the wiki write-back rule is active in the user's environment. It is **non-blocking** — if the user declines, continue to step 9.
+This step ensures the wiki write-back rule is active in the user's global Claude config. It is **non-blocking** — if the user declines, continue to step 9.
 
 The wiki maintenance paragraph to check for / add is:
 
@@ -189,63 +189,31 @@ Do not add facts from memory or inference alone — only what you can directly
 point to. If you cannot provide a source, do not write to the wiki.
 ```
 
-**Detection — check for existing instruction:**
+**Skip check:** Before doing anything, check whether `WIKI_MAINTENANCE_SKIP=1` is present in `~/.claude/CLAUDE.md`. If so, skip this step silently and mark `[–]`.
 
-1. Look for an `AGENTS.md` in the current working directory (the repo the user is working in):
-   ```bash
-   ls AGENTS.md 2>/dev/null || echo "NOT FOUND"
-   ```
-2. If found, check whether it already contains the wiki maintenance section:
-   ```bash
-   grep -q "Wiki maintenance" AGENTS.md && echo "PRESENT" || echo "ABSENT"
-   ```
-3. If not found in the repo, check `~/.claude/CLAUDE.md`:
-   ```bash
-   grep -q "Wiki maintenance" ~/.claude/CLAUDE.md 2>/dev/null && echo "PRESENT" || echo "ABSENT"
-   ```
+**Detection:**
 
-**Decision logic:**
-
-| AGENTS.md exists | Paragraph present | Action |
-|---|---|---|
-| Yes | Yes | Mark `[✓]` — already configured. No action needed. |
-| Yes | No | Ask permission to add to `AGENTS.md` (see prompt A below) |
-| No | Present in `~/.claude/CLAUDE.md` | Mark `[✓]` — already configured via local config. |
-| No | Absent | Ask permission to add to `~/.claude/CLAUDE.md` (see prompt B below) |
-
-**Prompt A** (AGENTS.md exists, paragraph absent):
-
-```
-Wiki maintenance instruction not found in AGENTS.md.
-
-This instruction tells Claude to write back facts discovered during
-investigations to the wiki, with verifiable source citations.
-
-Add it to AGENTS.md now? (yes / no / skip-always)
+```bash
+grep -q "Wiki maintenance" ~/.claude/CLAUDE.md 2>/dev/null && echo "PRESENT" || echo "ABSENT"
 ```
 
-- **yes** → append the paragraph to `AGENTS.md`, mark `[✓]`, continue
-- **no** → mark `[–]` (skipped this time), continue
-- **skip-always** → append `WIKI_MAINTENANCE_SKIP=1` to `~/.claude/CLAUDE.md` so this check is suppressed in future runs, mark `[–]`, continue
-
-**Prompt B** (`~/.claude/CLAUDE.md`, paragraph absent):
+- **PRESENT** → mark `[✓]` — already configured. No action needed.
+- **ABSENT** → show the following prompt:
 
 ```
-Wiki maintenance instruction not found.
+Wiki maintenance instruction not found in ~/.claude/CLAUDE.md.
 
-No AGENTS.md was found in the current directory. This instruction can be
-added to your global Claude config (~/.claude/CLAUDE.md) instead, so it
-applies in all sessions while you evaluate it. Once the approach is proven,
-you can move it to your repo's AGENTS.md and remove it from the global config.
+This tells Claude to write back facts discovered during investigations to
+the wiki, with verifiable source citations. It lives in your global config
+so it applies in all sessions while you evaluate it. Once proven, you can
+move it to your repo's AGENTS.md and remove it from the global config.
 
 Add it to ~/.claude/CLAUDE.md now? (yes / no / skip-always)
 ```
 
 - **yes** → append the paragraph to `~/.claude/CLAUDE.md`, mark `[✓]`, continue
 - **no** → mark `[–]` (skipped this time), continue
-- **skip-always** → append `WIKI_MAINTENANCE_SKIP=1` to `~/.claude/CLAUDE.md` so this check is suppressed in future runs, mark `[–]`, continue
-
-**Skip check:** Before showing any prompt, check whether `WIKI_MAINTENANCE_SKIP=1` is already present in `~/.claude/CLAUDE.md`. If so, skip this step silently.
+- **skip-always** → append a line `# WIKI_MAINTENANCE_SKIP=1` to `~/.claude/CLAUDE.md` so this check is suppressed in future runs, mark `[–]`, continue
 
 Also update the pre-flight checklist in step 0 to include this item:
 
