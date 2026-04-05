@@ -1,34 +1,184 @@
 ---
 name: add
 description: Add a fact, explanation, or note to the Firefox Knowledge Wiki in natural language. Claude decides which page to update or create.
-version: 0.1.0
+version: 0.2.0
 ---
 
-## Steps
-
-### 1. Read the input
+## Step 1 — Detect input type
 
 Read `$ARGUMENTS`. If empty, ask the user:
 
-> "What would you like to add to the wiki? Describe the fact, behavior, or concept."
+> "What would you like to add to the wiki? Describe the fact, behavior, or concept, or provide a spec URL."
 
-### 2. Locate the wiki
+Classify the input:
 
-Determine WIKI_PATH: use the `$WIKI_PATH` environment variable if set, otherwise `~/firefox-wiki/`.
+| Pattern | Route |
+|---|---|
+| Starts with `http://` or `https://` | → **Spec ingest path** (see below) |
+| Starts with `bug ` followed by digits | → **Bug ingest path**: invoke the `firefox-wiki:ingest` skill with the bug ID |
+| Anything else | → **Fact path** (existing behavior) |
 
-Check that `$WIKI_PATH/INDEX.md` exists. If not, tell the user:
+---
 
-> "Wiki not initialized. Run `/firefox-wiki:init` first."
+## Spec ingest path
 
+### S1 — Check prerequisites
+
+Run:
+```bash
+which pandoc || echo "NOT FOUND"
+which curl || echo "NOT FOUND"
+```
+
+If either is missing, tell the user:
+```
+pandoc and curl are required for spec ingestion.
+Install pandoc: brew install pandoc (macOS) or apt install pandoc (Linux)
+```
 Then stop.
 
-### 3. Read INDEX.md
+### S2 — Fetch and convert
 
-Read `$WIKI_PATH/INDEX.md` to understand the current wiki structure — which components, relations, patterns, specs, and bugs are already cataloged.
+```bash
+SPEC_URL="<the URL from $ARGUMENTS>"
+SPEC_MD="/tmp/wiki-spec-ingest.md"
 
-### 4. Classify the input
+# Capture response headers for staleness tracking
+curl -sI "$SPEC_URL" > /tmp/wiki-spec-headers.txt
 
-Determine which content type best matches the input:
+# Fetch and convert to markdown in one pipeline
+curl -sL --max-time 120 "$SPEC_URL" \
+  | pandoc -f html -t markdown --strip-comments --wrap=none \
+  > "$SPEC_MD"
+```
+
+Extract staleness metadata from the headers:
+```bash
+ETAG=$(grep -i "^etag:" /tmp/wiki-spec-headers.txt | tr -d '\r' | awk '{print $2}')
+LAST_MOD=$(grep -i "^last-modified:" /tmp/wiki-spec-headers.txt | tr -d '\r' | cut -d' ' -f2-)
+FETCH_DATE=$(date +%Y-%m-%d)
+```
+
+### S3 — Map sections
+
+Scan headings to understand structure:
+```bash
+grep "^#" "$SPEC_MD" | head -60
+```
+
+Identify the **major sections** (top-level `#` or `##` headings that represent distinct concepts). Ignore navigation boilerplate (table of contents, "Living Standard", header/footer content).
+
+For the WHATWG HTML media spec, major sections are typically:
+- Media elements
+- The `video` element
+- The `audio` element
+- The `source` element  
+- The `track` element
+- Ready states
+- Playback / the `HTMLMediaElement` interface
+- Media resources
+- Time ranges
+- Error codes
+- Events summary
+
+### S4 — Create spec pages
+
+Determine `WIKI_PATH` (use `$WIKI_PATH` env var, otherwise `~/firefox-wiki/`).
+
+For each major section:
+
+1. **Extract the section content** from the markdown file — from its heading to the next same-level heading.
+
+2. **Distill it**: do not copy the spec verbatim. Instead write a structured summary covering:
+   - What this section defines
+   - The key rules, states, or algorithm steps relevant to a Firefox implementer
+   - Any normative requirements that affect Firefox's behavior
+   
+   Omit: cross-reference links (`§4.8.x`), implementor notes that don't affect Firefox, `Note:` blocks that restate obvious things, index/navigation content.
+
+3. **Create or update** `$WIKI_PATH/specs/<slug>.md` using this template:
+
+```markdown
+# <Section title>
+
+<!-- spec-source: <URL> -->
+<!-- spec-fetched: <FETCH_DATE> -->
+<!-- spec-etag: <ETAG> -->
+<!-- spec-last-modified: <LAST_MOD> -->
+
+## Summary
+
+<1-3 sentence overview of what this section covers>
+
+## Key Rules
+
+<numbered list of normative requirements — the "shall" and "must" rules>
+
+## States / Attributes
+
+<table if the section defines states, attributes, or error codes>
+
+## Firefox-Specific Notes
+
+<leave empty for now — filled in as implementation experience accumulates>
+```
+
+4. If a page for this section **already exists**: update the content sections but preserve any existing `## Firefox-Specific Notes`. Update the `spec-fetched` and `spec-etag` metadata comments.
+
+### S5 — Update INDEX.md
+
+Add a row for each new spec page created to the `## Specs & Platform` table in INDEX.md:
+```
+| [[<slug>]] | <one-line description of what it covers> |
+```
+
+Update the "Last updated" date.
+
+### S6 — Log and push
+
+Append to `usage-log.jsonl`:
+```json
+{"date":"<ISO timestamp>","event_type":"spec-ingest","trigger":"user","url":"<SPEC_URL>","pages_created":[...],"pages_updated":[...]}
+```
+
+Run:
+```bash
+cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest spec <domain/path>" && git push
+```
+
+### S7 — Confirm
+
+Print:
+```
+Spec ingested: <URL>
+
+Created: <list of new pages>
+Updated: <list of updated pages>
+
+Re-run `/firefox-wiki:add <URL>` to refresh when the spec updates.
+Staleness will be flagged automatically by `/firefox-wiki:lint --full`.
+```
+
+---
+
+## Bug ingest path
+
+Extract the bug ID from `$ARGUMENTS` (strip the `bug ` prefix). Invoke the `firefox-wiki:ingest` skill passing the bug ID.
+
+---
+
+## Fact path
+
+### 1. Locate the wiki
+
+Check that `$WIKI_PATH/INDEX.md` exists. If not, tell the user:
+> "Wiki not initialized. Run `/firefox-wiki:init` first."
+
+### 2. Read INDEX.md
+
+Read `$WIKI_PATH/INDEX.md` to understand current wiki structure.
+
+### 3. Classify the fact
 
 | Type | Criteria | Target path |
 |---|---|---|
@@ -39,39 +189,29 @@ Determine which content type best matches the input:
 | **Bug learning** | Distilled insight from a resolved bug | `bugs/<id>-<slug>.md` |
 | **Glossary entry** | Abbreviation, error code, or enum value | `glossary.md` |
 
-### 5. Determine confidence level
+### 4. Determine confidence level
 
 If not obvious from context, ask the user:
-
-> "What is the confidence level for this fact?
 > - [High] — verified by reading source code
 > - [Medium] — inferred from observed behavior or documentation
-> - [Low] — extrapolated or from memory; needs future verification"
+> - [Low] — extrapolated or from memory; needs future verification
 
-If the user's phrasing makes the confidence obvious (e.g. "I just read the code and confirmed that..." implies High; "I think..." implies Low), infer it without asking.
+### 5. Determine source citation
 
-### 6. Determine source citation
+Identify the source if available: bug number, revision hash, spec section, or colleague name.
 
-Identify the source if available: bug number, revision hash, spec section, or colleague name. Ask if it is not clear from the input and the user has not already provided it.
+### 6. Write the content
 
-### 7. Determine the target page and write the content
+**If a relevant page already exists:** append to the appropriate section.
 
-**If a relevant page already exists:** append to the appropriate section within that page.
+**If no page exists yet:** create using the standard template for its type.
 
-**If no page exists yet:** create it using the standard template for its type (see templates below).
-
-**If the content spans multiple pages** (e.g. a fact about how component A interacts with component B): write the full content on the relation page (`relations/<A>-<B>.md`) and add a cross-reference line in each of the component pages.
-
-Format the new content as:
-
+Format new content as:
 ```markdown
-### <Section heading if a new section is needed>
 <content> [High] <!-- source: bug 2026875, 2026-04-04 -->
 ```
 
-If the content fits naturally into an existing section, append without adding a new heading.
-
-Use `[[wiki-links]]` for every component, pattern, or bug name mentioned in the content.
+Use `[[wiki-links]]` for every component, pattern, or bug name mentioned.
 
 #### Page templates
 
@@ -110,17 +250,6 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned in the 
 ## Implementation Notes
 ```
 
-**Spec/platform page** (`specs/<name>.md` or `platform/<name>.md`):
-```markdown
-# <Name>
-
-## Summary
-
-## Key Rules
-
-## Firefox-Specific Notes
-```
-
 **Bug learning page** (`bugs/<id>-<slug>.md`):
 ```markdown
 # Bug <id> — <slug>
@@ -132,36 +261,26 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned in the 
 ## Learnings
 ```
 
-### 8. Update INDEX.md if a new page was created
+### 7. Update INDEX.md if a new page was created
 
-If a new page was created in this step, add a row for it to the appropriate table in INDEX.md.
-
-### 9. Append to usage-log.jsonl
-
-Append a single line to `$WIKI_PATH/usage-log.jsonl`:
+### 8. Append to usage-log.jsonl
 
 ```json
 {"date":"<ISO 8601 timestamp>","event_type":"add","trigger":"user","file":"<relative path from WIKI_PATH>","confidence":"<High|Medium|Low>"}
 ```
 
-### 10. Lint wiki-links
+### 9. Lint wiki-links
 
-After writing, scan the modified file for all `[[PageName]]` references. For each one, check whether a file named `<PageName>.md` exists anywhere under `$WIKI_PATH`. Report any broken links to the user.
+Scan modified files for `[[PageName]]` references. Report any broken links.
 
-### 11. Push to remote
-
-Run:
+### 10. Push to remote
 
 ```bash
-cd $WIKI_PATH && git add -A && git commit -m "wiki: add <one-line summary of what was added>" && git push
+cd $WIKI_PATH && git add -A && git commit -m "wiki: add <one-line summary>" && git push
 ```
 
-### 12. Confirm to the user
-
-Print a confirmation in this format:
+### 11. Confirm
 
 ```
 Added to `<relative file path>` with [<confidence>] tag. [[links]] verified. Pushed to remote.
 ```
-
-If any broken links were found, list them after the confirmation line.

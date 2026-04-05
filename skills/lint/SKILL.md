@@ -82,26 +82,49 @@ Report any component page missing one or more of these headings.
 
 Find any `.md` file exceeding 300 lines. Report each as a candidate for splitting.
 
-### 7. Pattern synthesis candidates
+### 7. Spec staleness check
+
+For every file under `$WIKI_PATH/specs/` that contains a `<!-- spec-source: <url> -->` comment:
+
+1. Extract the URL and stored ETag/Last-Modified:
+   ```bash
+   grep "spec-source\|spec-etag\|spec-last-modified" <file>
+   ```
+
+2. Fetch current headers (no body download):
+   ```bash
+   curl -sI --max-time 10 "<url>"
+   ```
+
+3. Compare the current `etag` or `last-modified` header against the stored value.
+   - If **unchanged**: mark as current.
+   - If **changed or missing**: flag as stale.
+   - If the `curl` request **fails** (timeout, network error): mark as "unverified — check manually".
+
+4. Report stale pages as:
+   > `specs/<file>.md` — spec updated since last ingest (ETag changed). Re-run `/firefox-wiki:add <url>` to refresh.
+
+### 8. Pattern synthesis candidates
 
 Read all bug learning pages. Group them by component pairs mentioned. If 3 or more bugs share the same component pair and no pattern page exists for that pair, suggest:
 
 > Consider creating a pattern page for \<A\>-\<B\> interactions (appears in bugs X, Y, Z)
 
-### 8. Summary report
+### 9. Summary report
 
 Print:
 
 ```
 ## Wiki Lint Report — <date>
 
-Broken links: <n> issues
-Missing from index: <n> pages
-Orphaned index entries: <n>
-Potentially stale: <n> pages
-Missing required sections: <n>
-Oversized pages: <n>
-Pattern synthesis candidates: <n>
+Broken links:               <n> issues
+Missing from index:         <n> pages
+Orphaned index entries:     <n>
+Potentially stale (code):   <n> pages  (>180 days)
+Stale specs:                <n> pages  (spec updated upstream)
+Missing required sections:  <n>
+Oversized pages:            <n>
+Pattern synthesis:          <n> candidates
 
 <details for each category>
 ```
