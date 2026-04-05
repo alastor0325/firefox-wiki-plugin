@@ -20,7 +20,9 @@ If the file is missing or empty, stop and say:
 
 ### 2. Parse the log
 
-Read the JSONL file — one JSON object per line. Group entries by `event_type`:
+Read the JSONL file — one JSON object per line. Skip any line that is not valid JSON (malformed entries — lint will repair them on next run). Group entries by `event_type`:
+
+For each metric below, if the required fields are absent on an event, skip that event and note the count of skipped entries at the end of the report. Never crash or omit a metric entirely because of missing fields — show `n/a (N events missing required fields)` instead.
 - `wiki_read` — wiki consultation events (from lookup)
 - `ingest` — post-investigation bug knowledge additions
 - `url-ingest` / `pdf-ingest` — spec/platform ingests (from add or init)
