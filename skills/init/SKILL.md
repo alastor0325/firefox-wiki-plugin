@@ -6,11 +6,32 @@ version: 0.1.0
 
 ## Steps
 
-### 0. Check wiki content repo is cloned
+### 0. Print pre-flight checklist
 
-Before doing anything, check whether `$WIKI_PATH` (or `~/firefox-wiki/` if unset) already exists and contains `INDEX.md`.
+Before doing anything, print this checklist so the user can see what will be verified:
 
-If `INDEX.md` is **not found**, stop and print:
+```
+Firefox Knowledge Wiki — Pre-flight checks
+
+  [ ] Wiki content repo cloned at ~/firefox-wiki/
+  [ ] jq installed
+  [ ] pandoc installed
+  [ ] log-wiki-read.sh hook present
+```
+
+Then run each check in order. For each item, update its status as you go:
+- `[✓]` — found / satisfied
+- `[✗]` — missing — see action below
+
+### 1. Determine WIKI_PATH
+
+Use the `$WIKI_PATH` environment variable if set; otherwise default to `~/firefox-wiki/`.
+
+### 2. Check wiki content repo
+
+Check whether `$WIKI_PATH/INDEX.md` exists.
+
+If **not found**, mark `[✗]` and stop with:
 
 ```
 Firefox Knowledge Wiki content not found at ~/firefox-wiki/.
@@ -24,19 +45,56 @@ Note: this is a private repo. If you don't have access, contact :alwu (alwu@mozi
 Once cloned, re-run /firefox-wiki:init.
 ```
 
-Do not proceed further until the wiki repo is cloned.
+Do not proceed further.
 
-### 1. Determine WIKI_PATH
+### 3. Check jq
 
-Use the `$WIKI_PATH` environment variable if set; otherwise default to `~/firefox-wiki/`.
+Run `which jq`.
 
-### 2. Check prerequisites
+If **not found**, mark `[✗]` and ask:
 
-Run `which jq` and `which pandoc`. Record which are missing — do not stop. Continue with all remaining steps regardless.
+```
+jq is not installed. Install it now?
 
-Check whether `${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh` exists. Record the result but continue.
+  brew install jq
 
-### 3. Create directory structure
+Reply "yes" to install, or "no" to abort.
+```
+
+Wait for the user's reply:
+- **yes** → run `brew install jq`, verify it succeeds, mark `[✓]`, continue
+- **no** → stop. Do not proceed to the next step.
+
+### 4. Check pandoc
+
+Run `which pandoc`.
+
+If **not found**, mark `[✗]` and ask:
+
+```
+pandoc is not installed. It is required for URL ingestion (/firefox-wiki:add <url>). Install it now?
+
+  brew install pandoc
+
+Reply "yes" to install, or "no" to abort.
+```
+
+Wait for the user's reply:
+- **yes** → run `brew install pandoc`, verify it succeeds, mark `[✓]`, continue
+- **no** → stop. Do not proceed to the next step.
+
+### 5. Check hook script
+
+Check whether `${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh` exists.
+
+If **not found**, mark `[✗]` and warn (non-blocking — continue):
+
+```
+Warning: log-wiki-read.sh not found. Wiki read events will not be logged.
+Re-install the plugin to fix: /plugin install firefox-wiki@firefox-wiki-plugin
+```
+
+### 6. Create directory structure
 
 Run `mkdir -p` for each of the following (it is safe to run even if they already exist):
 
@@ -47,7 +105,7 @@ Run `mkdir -p` for each of the following (it is safe to run even if they already
 - `$WIKI_PATH/patterns/`
 - `$WIKI_PATH/bugs/`
 
-### 4. Create files if they do not already exist
+### 7. Create files if they do not already exist
 
 Never overwrite a file that is already present. Check for existence before writing each one.
 
@@ -107,9 +165,7 @@ Last updated: (today's date)
 See [[log.md]] for full history.
 ```
 
-### 5. Print a status report
-
-After completing all steps, print the status report:
+### 8. Print a status report
 
 ```
 Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
@@ -117,28 +173,7 @@ Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
 Directories: ✓ specs/ ✓ platform/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
 
-Hooks:   [active / NOT FOUND — re-install plugin]
-jq:      [found / NOT FOUND]
-pandoc:  [found / NOT FOUND]
-
 Next steps:
-- Add knowledge: /firefox-wiki:add <statement>
-- Before investigating a bug: wiki lookup runs automatically
+- Add knowledge:       /firefox-wiki:add <statement or URL>
+- Before investigating: wiki lookup runs automatically
 ```
-
-If any tools are missing, after the status report offer to install them:
-
-```
-Some required tools are missing. Would you like me to install them now?
-
-  brew install <missing tools>
-
-Reply "yes" to install, or install manually at any time.
-```
-
-Wait for the user's reply. If they say yes, run the install command. If no, do nothing — the wiki is fully initialized and the tools can be installed later.
-
-Replace the bracketed placeholders with the actual detected state:
-- `Hooks`: `active` if `log-wiki-read.sh` was found, otherwise `NOT FOUND — re-install plugin`
-- `jq`: `found` or `NOT FOUND`
-- `pandoc`: `found` or `NOT FOUND`
