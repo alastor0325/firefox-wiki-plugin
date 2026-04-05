@@ -16,6 +16,8 @@ Once installed, no ongoing effort is required.
 
 **After every wiki write** — a hook runs a lightweight lint pass to catch broken links and stale references.
 
+You can also add knowledge manually at any time — spec URLs, bug learnings, or free-form facts — using `/firefox-wiki:add`. See [Commands](#commands) for details.
+
 ## Install
 
 **1. Add the plugin:**
