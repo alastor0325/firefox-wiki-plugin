@@ -98,6 +98,8 @@ brew install jq pandoc && cargo install bmo-to-md
 
 All pages are plain Markdown with `[[wiki-links]]`. You can open the wiki directory as an [Obsidian](https://obsidian.md) vault to browse and search the accumulated knowledge visually — no configuration needed.
 
+![Obsidian graph view of the wiki](docs/obsidian-graph-view.png)
+
 ---
 
 ## Accuracy
