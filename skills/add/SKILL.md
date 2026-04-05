@@ -63,7 +63,7 @@ Reply "yes" to install, or "no" to abort.
 
 Wait for reply. If yes, run the install and verify it succeeds before continuing. If no, stop.
 
-### S2 — Classify the URL
+### S2 — Classify the URL and derive spec group
 
 Determine target directory and ingest strategy based on the domain:
 
@@ -72,6 +72,19 @@ Determine target directory and ingest strategy based on the domain:
 | whatwg.org, w3.org, ietf.org, iso.org, itu.int, khronos.org | `specs/` | **Section-based**: one wiki page per major section |
 | microsoft.com, docs.microsoft.com, learn.microsoft.com, developer.apple.com | `platform/` | **Single page**: one wiki page for the whole resource |
 | Everything else (MDN, blogs, postmortems, wikis, etc.) | `others/` | **Single page**: one wiki page for the whole resource |
+
+For `specs/` sources, also derive a **spec group** subfolder from the URL path:
+
+- Take the last meaningful path segment (filename without extension, or last directory name)
+- Slugify: lowercase, replace spaces and `/` with `-`, strip `.html`/`.txt`/`.pdf`
+- Examples:
+  - `html.spec.whatwg.org/multipage/media.html` → `specs/html-media/`
+  - `w3.org/TR/webcodecs/` → `specs/webcodecs/`
+  - `w3.org/TR/webaudio/` → `specs/webaudio/`
+  - `ietf.org/rfc/rfc6381.txt` → `specs/rfc6381/`
+  - `w3.org/TR/media-source/` → `specs/media-source/`
+
+All section pages from a single spec ingest go into the same subfolder.
 
 ### S3 — Fetch and convert
 
@@ -105,7 +118,7 @@ For each major section:
    - What this section defines
    - Key normative rules, states, algorithm steps
    - Omit: `§x.y` cross-references, implementor notes irrelevant to Firefox, pure navigation
-3. Create or update `$WIKI_PATH/specs/<slug>.md`:
+3. Create or update `$WIKI_PATH/specs/<spec-group>/<slug>.md` (create the subfolder if needed):
 
 ```markdown
 # <Section title>
@@ -198,8 +211,8 @@ Determine whether the PDF is a public or private spec:
 | IETF RFC, W3C, WHATWG, Khronos, public domain | **Public** — distill only (best practice) |
 | Internal doc, postmortem, design doc | **Private** — distill only |
 
-Determine target directory:
-- Formal standards (ISO, IEC, ITU-T, IETF, W3C, Khronos) → `specs/`
+Determine target directory and spec group:
+- Formal standards (ISO, IEC, ITU-T, IETF, W3C, Khronos) → `specs/<spec-group>/` where spec group is derived from the filename (e.g. `h264-spec.pdf` → `specs/h264/`, `rfc6381.pdf` → `specs/rfc6381/`)
 - Platform/vendor docs (Microsoft, Apple internal PDFs) → `platform/`
 - Everything else → `others/`
 
