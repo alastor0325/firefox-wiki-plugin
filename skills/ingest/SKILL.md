@@ -145,7 +145,7 @@ Append the following block to `log.md`:
 Append a single JSON object (one line) to `usage-log.jsonl`:
 
 ```json
-{"date": "<ISO timestamp>", "event_type": "ingest", "trigger": "<hook|user>", "bug_id": <number>, "pages_created": ["bugs/...", "patterns/..."], "pages_updated": ["components/...", "relations/..."], "hypothesis_from_wiki": <true|false>, "hypothesis_text": "<if applicable>", "hypothesis_correct": null}
+{"date": "<ISO timestamp>", "event_type": "ingest", "user": "<git -C $WIKI_PATH config user.email>", "trigger": "<hook|user>", "bug_id": <number>, "pages_created": ["bugs/...", "patterns/..."], "pages_updated": ["components/...", "relations/..."], "hypothesis_from_wiki": <true|false>, "hypothesis_text": "<if applicable>", "hypothesis_correct": null}
 ```
 
 To populate `hypothesis_from_wiki` and `hypothesis_text`: scan `usage-log.jsonl` for a prior `wiki_read` event whose `session_context.inferred_bug_id` matches this bug ID. If such an event is found, set `hypothesis_from_wiki: true` and copy the hypothesis text from that event. Otherwise set `hypothesis_from_wiki: false` and `hypothesis_text: ""`.

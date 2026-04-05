@@ -93,6 +93,11 @@ Then suggest: "After the investigation, add findings with `/firefox-wiki:add`."
 
 Append one JSON line to `$WIKI_PATH/usage-log.jsonl` for each file actually read:
 
+Resolve the user field first:
+```bash
+WIKI_USER=$(git -C $WIKI_PATH config user.email 2>/dev/null || echo "unknown")
+```
+
 ```json
-{"date":"<ISO 8601 datetime>","event_type":"wiki_read","trigger":"agent","file":"<path relative to WIKI_PATH>","query":"<query text>","bug_id":<number or null>}
+{"date":"<ISO 8601 datetime>","event_type":"wiki_read","user":"<WIKI_USER>","trigger":"agent","file":"<path relative to WIKI_PATH>","query":"<query text>","bug_id":<number or null>}
 ```

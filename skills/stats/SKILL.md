@@ -38,7 +38,16 @@ The primary metric. Definition:
 
 If a `wiki_read` event has `bug_id: null`, it cannot be correlated; count it only if its timestamp falls within 24 hours before an `ingest` event with no prior `wiki_read` match.
 
-Display as a monthly table:
+If the log contains events with a `user` field, compute hit rate per user and show both tables: one per-user, then a team aggregate row. Events without a `user` field are grouped under `(unknown)`.
+
+```
+| Month | User              | Investigations | Wiki Hits | Hit Rate |
+|-------|-------------------|----------------|-----------|----------|
+| ...   | alwu@mozilla.com  | ...            | ...       | ...      |
+| ...   | (team total)      | ...            | ...       | ...      |
+```
+
+If no events have a `user` field, fall back to the single-column table:
 
 ```
 | Month | Investigations | Wiki Hits | Hit Rate |
@@ -50,7 +59,7 @@ Targets: >50% at 3 months, >70% at 6 months.
 
 #### Most Consulted Pages
 
-Count `wiki_read` events per `file` field. Show the top 10:
+Count `wiki_read` events per `file` field. If `user` data is present, also show a per-user breakdown for the top 5 pages. Show the top 10 overall:
 
 ```
 | Page | Reads | Last Read |

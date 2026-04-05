@@ -197,7 +197,7 @@ Update the "Last updated" date.
 
 Append to `usage-log.jsonl`:
 ```json
-{"date":"<ISO timestamp>","event_type":"url-ingest","trigger":"user","url":"<SRC_URL>","directory":"<specs|platform|others>","pages_created":[...],"pages_updated":[...]}
+{"date":"<ISO timestamp>","event_type":"url-ingest","user":"<git -C $WIKI_PATH config user.email>","trigger":"user","url":"<SRC_URL>","directory":"<specs|platform|others>","pages_created":[...],"pages_updated":[...]}
 ```
 
 Prepend an entry to `log.md` (after the `---` separator, before any prior entries):
@@ -407,7 +407,7 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned.
 
 Append to `usage-log.jsonl`:
 ```json
-{"date":"<ISO 8601 timestamp>","event_type":"add","trigger":"user","file":"<relative path from WIKI_PATH>","confidence":"<High|Medium|Low>"}
+{"date":"<ISO 8601 timestamp>","event_type":"add","user":"<git -C $WIKI_PATH config user.email>","trigger":"user","file":"<relative path from WIKI_PATH>","confidence":"<High|Medium|Low>"}
 ```
 
 Prepend an entry to `log.md` (after the `---` separator, before any prior entries):
