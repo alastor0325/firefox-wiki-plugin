@@ -30,12 +30,17 @@ which pandoc || echo "NOT FOUND"
 which curl || echo "NOT FOUND"
 ```
 
-If either is missing, tell the user:
+If either is missing, tell the user which tool is absent and offer to install it:
+
 ```
-pandoc and curl are required for spec ingestion.
-Install pandoc: brew install pandoc (macOS) or apt install pandoc (Linux)
+<tool> is required for URL ingestion. Would you like me to install it now?
+
+  brew install <tool>
+
+Reply "yes" to install, or install manually and re-run the command.
 ```
-Then stop.
+
+Wait for the user's reply. If yes, run the install command and continue. If no, stop.
 
 ### S2 — Fetch and convert
 
