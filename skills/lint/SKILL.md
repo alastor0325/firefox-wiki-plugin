@@ -1,22 +1,45 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
-version: 0.3.0
+version: 0.4.0
 ---
 
-## Lint metadata
+## Lint state: lint-log.json
 
-Every wiki page carries two metadata comments that drive interval-based linting:
+All lint state is stored in a single file at `$WIKI_PATH/lint-log.json`. Pages are never modified by the lint skill — all metadata stays in this file.
 
+### Format
+
+```json
+{
+  "components/AudioSink.md": {
+    "lint-last": "2026-04-05",
+    "lint-source-rev": "abc123def"
+  },
+  "specs/MSE_W3C/overview.md": {
+    "lint-last": "2026-01-10"
+  }
+}
 ```
-<!-- lint-last: 2026-04-05 -->
-<!-- lint-source-rev: abc123def -->
+
+- `lint-last` — ISO 8601 date of last successful lint pass for this page
+- `lint-source-rev` — git hash of the Firefox tree at last lint (components/relations only)
+
+Pages absent from `lint-log.json` are treated as never-linted and are always due.
+
+### Reading and writing
+
+Read the full log at the start of any full/force lint run:
+```bash
+cat $WIKI_PATH/lint-log.json 2>/dev/null || echo "{}"
 ```
 
-- `lint-last` — date of last successful lint for this page (ISO 8601)
-- `lint-source-rev` — git hash of the Firefox tree at the time of last lint (components/relations only; omitted for specs/patterns/bugs)
-
-These are written by the lint skill after each page passes its checks. Pages without these comments are treated as never-linted (lint immediately).
+After all checks complete, write the updated log in one atomic operation and commit:
+```bash
+# build updated JSON in memory, then write
+echo '<updated-json>' > $WIKI_PATH/lint-log.json
+cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +%Y-%m-%d)"
+```
 
 ## Lint intervals by content type
 
@@ -82,7 +105,8 @@ Runs all checks that are due. For each page, first determine whether it needs li
 
 ```
 TODAY = current date
-lint-last = read from page metadata (or epoch if absent)
+LINT_LOG = parsed lint-log.json
+lint-last = LINT_LOG[page]["lint-last"] or "1970-01-01" if absent
 interval = lookup from table above (by directory)
 
 if (TODAY - lint-last) >= interval:
@@ -94,17 +118,14 @@ else:
 For `components/` and `relations/` pages that are due, additionally run the source-change check:
 
 ```bash
-# Get Firefox repo root
 FIREFOX_ROOT=$(git -C ~/firefox rev-parse --show-toplevel 2>/dev/null || echo ~/firefox)
-
-# Get current HEAD
 CURRENT_REV=$(git -C $FIREFOX_ROOT rev-parse HEAD)
+lint-source-rev = LINT_LOG[page]["lint-source-rev"] (empty if absent)
 
-# Check if any relevant files changed since lint-source-rev
 git -C $FIREFOX_ROOT log <lint-source-rev>..<CURRENT_REV> --oneline -- dom/media/ 2>/dev/null
 ```
 
-If the log is **empty** (no commits to `dom/media/` since last lint): mark page as **source-unchanged** and skip accuracy checks (only run structural checks). Update `lint-last` to today without updating `lint-source-rev`.
+If the log is **empty** (no commits to `dom/media/` since last lint): mark page as **source-unchanged** — skip accuracy checks, run structural checks only. Record `lint-last = TODAY` in `lint-log.json` but leave `lint-source-rev` unchanged.
 
 If the log is **non-empty** or `lint-source-rev` is absent: run all checks for this page.
 
@@ -212,20 +233,29 @@ Read all bug pages. Group by component pairs mentioned. If 3+ bugs share the sam
 
 ---
 
-## After checks: update lint metadata
+## After checks: update lint-log.json
 
-For each page that was checked (due and not skipped):
+After all pages have been checked, update `lint-log.json` in one pass:
 
-1. If all checks passed (or only advisory issues): update metadata comments in the page:
-   ```
-   <!-- lint-last: <TODAY> -->
-   <!-- lint-source-rev: <CURRENT_REV> -->   ← components/relations only
-   ```
+For each page that was checked (due, not skipped):
+- Set `lint-last` to TODAY
+- For components/relations that ran accuracy checks: set `lint-source-rev` to `CURRENT_REV`
+- For components/relations that were source-unchanged: leave `lint-source-rev` as-is
 
-2. Commit the metadata updates:
-   ```bash
-   cd $WIKI_PATH && git add -A && git commit -m "wiki: lint metadata update $(date +%Y-%m-%d)"
-   ```
+Build the updated JSON using `jq`:
+```bash
+jq --arg page "components/AudioSink.md" \
+   --arg date "2026-04-05" \
+   --arg rev "abc123def" \
+   '.[$page] = {"lint-last": $date, "lint-source-rev": $rev}' \
+   $WIKI_PATH/lint-log.json > /tmp/lint-log-new.json \
+   && mv /tmp/lint-log-new.json $WIKI_PATH/lint-log.json
+```
+
+Repeat for each checked page, then commit once:
+```bash
+cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +%Y-%m-%d)"
+```
 
 ---
 
