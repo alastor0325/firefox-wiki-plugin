@@ -1,7 +1,7 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
-version: 0.5.0
+version: 0.6.0
 user-invocable: false
 ---
 
@@ -231,6 +231,46 @@ If not found:
 
 Read all bug pages. Group by component pairs mentioned. If 3+ bugs share the same component pair and no pattern page exists, suggest:
 > Consider creating a pattern page for `<A>`-`<B>` interactions (appears in bugs X, Y, Z)
+
+---
+
+## Auto-fix pass
+
+After all checks complete, automatically fix all mechanical issues before updating lint-log.json. Do not ask for confirmation — apply all fixes silently and include a count in the summary report.
+
+### Fix 1: Spec-internal terms in spec pages
+
+In all files under `specs/`, `platform/`, `others/`: find `[[PageName]]` links where the target does not exist anywhere under `$WIKI_PATH`. These are W3C/spec-defined terms (e.g. `[[append state]]`, `[[buffer full flag]]`) that were incorrectly marked as wiki-links during ingestion.
+
+For each such broken link in a spec page: replace `[[PageName]]` with plain text `PageName` (strip the brackets).
+
+```bash
+# For each spec file with broken links, use sed to strip [[...]] for unresolved targets
+sed -i 's/\[\[<broken-term>\]\]/<broken-term>/g' <spec-file>
+```
+
+Apply only to files under `specs/`, `platform/`, `others/` — never strip links in `components/`, `relations/`, `patterns/`, or `bugs/`.
+
+### Fix 2: Bug link format
+
+In all wiki files: find `[[bug XXXXXXX]]` patterns. For each, look up the matching bug page under `bugs/`:
+
+```bash
+find $WIKI_PATH/bugs -name "<XXXXXXX>-*.md" | head -1
+```
+
+- If found: replace `[[bug XXXXXXX]]` with `[[bugs/XXXXXXX-slug]]` (using the actual filename without `.md`)
+- If not found: leave as-is — report as unresolvable in the summary
+
+### Fix 3: Dead references to deleted pages
+
+In `components/` and `relations/` pages: find `[[PageName]]` links where:
+- The target does not exist anywhere under `$WIKI_PATH`
+- The target is a relation or pattern page (contains `-` suggesting a relation, or matches a known deleted page)
+
+For each such dead reference: replace `[[PageName]]` with plain text `PageName`.
+
+Do **not** auto-remove references to missing component pages — those may need to be created, not removed. Only remove references to pages that were explicitly relation/pattern pages (identified by naming convention: `A-B` format for relations).
 
 ---
 
