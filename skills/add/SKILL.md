@@ -20,7 +20,7 @@ Classify the input:
 
 ---
 
-## Spec ingest path
+## URL ingest path
 
 ### S1 — Check prerequisites
 
@@ -66,64 +66,58 @@ Scan headings to understand structure:
 grep "^#" "$SPEC_MD" | head -60
 ```
 
-Identify the **major sections** (top-level `#` or `##` headings that represent distinct concepts). Ignore navigation boilerplate (table of contents, "Living Standard", header/footer content).
+Identify the **major sections** (top-level `#` or `##` headings that represent distinct concepts). Ignore navigation boilerplate: table of contents, site headers/footers, breadcrumbs, "see also" sidebars, cookie banners, and repeated navigation links.
 
-For the WHATWG HTML media spec, major sections are typically:
-- Media elements
-- The `video` element
-- The `audio` element
-- The `source` element  
-- The `track` element
-- Ready states
-- Playback / the `HTMLMediaElement` interface
-- Media resources
-- Time ranges
-- Error codes
-- Events summary
+Use judgment about what counts as a section worth storing — a section should represent a self-contained concept, not a one-line stub or pure navigation entry.
 
-### S4 — Create spec pages
+### S4 — Create pages
 
 Determine `WIKI_PATH` (use `$WIKI_PATH` env var, otherwise `~/firefox-wiki/`).
+
+Determine the target directory based on the source:
+- Formal spec (w3.org, whatwg.org, ietf.org, iso.org, itu.int) → `specs/`
+- Reference docs, MDN, blog posts, postmortems, internal wikis → `platform/`
+- When in doubt, use `specs/`
 
 For each major section:
 
 1. **Extract the section content** from the markdown file — from its heading to the next same-level heading.
 
-2. **Distill it**: do not copy the spec verbatim. Instead write a structured summary covering:
-   - What this section defines
-   - The key rules, states, or algorithm steps relevant to a Firefox implementer
-   - Any normative requirements that affect Firefox's behavior
-   
-   Omit: cross-reference links (`§4.8.x`), implementor notes that don't affect Firefox, `Note:` blocks that restate obvious things, index/navigation content.
+2. **Distill it**: do not copy the source verbatim. Write a structured summary covering:
+   - What this section defines or explains
+   - Key rules, states, or algorithm steps relevant to a Firefox implementer
+   - Any normative requirements or behavioral constraints
 
-3. **Create or update** `$WIKI_PATH/specs/<slug>.md` using this template:
+   Omit: cross-reference links (`§4.8.x`), navigation content, cookie/legal banners, content that doesn't add implementation value.
+
+3. **Create or update** `$WIKI_PATH/<target-dir>/<slug>.md` using this template:
 
 ```markdown
 # <Section title>
 
-<!-- spec-source: <URL> -->
-<!-- spec-fetched: <FETCH_DATE> -->
-<!-- spec-etag: <ETAG> -->
-<!-- spec-last-modified: <LAST_MOD> -->
+<!-- source-url: <URL> -->
+<!-- source-fetched: <FETCH_DATE> -->
+<!-- source-etag: <ETAG> -->
+<!-- source-last-modified: <LAST_MOD> -->
 
 ## Summary
 
-<1-3 sentence overview of what this section covers>
+<1-3 sentence overview>
 
 ## Key Rules
 
-<numbered list of normative requirements — the "shall" and "must" rules>
+<numbered list of important rules or behaviors>
 
 ## States / Attributes
 
-<table if the section defines states, attributes, or error codes>
+<table if the section defines states, attributes, or error codes — omit section if not applicable>
 
 ## Firefox-Specific Notes
 
-<leave empty for now — filled in as implementation experience accumulates>
+<leave empty — filled in as implementation experience accumulates>
 ```
 
-4. If a page for this section **already exists**: update the content sections but preserve any existing `## Firefox-Specific Notes`. Update the `spec-fetched` and `spec-etag` metadata comments.
+4. If a page for this section **already exists**: update the content sections but preserve any existing `## Firefox-Specific Notes`. Update the `source-fetched` and `source-etag` metadata comments.
 
 ### S5 — Update INDEX.md
 

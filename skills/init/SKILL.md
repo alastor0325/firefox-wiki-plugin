@@ -38,6 +38,13 @@ Run `which jq`. If jq is not found, print this error and stop:
 jq is required. Install with: brew install jq (macOS) or apt install jq (Linux)
 ```
 
+Run `which pandoc`. If pandoc is not found, warn but continue (it is only needed for URL ingestion via `/firefox-wiki:add <url>`):
+
+```
+Warning: pandoc not found. URL ingestion will not work.
+Install with: brew install pandoc (macOS) or apt install pandoc (Linux)
+```
+
 Check whether `${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh` exists. If not found, warn the user but continue.
 
 ### 3. Create directory structure
@@ -121,8 +128,9 @@ Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
 Directories: ✓ specs/ ✓ platform/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
 
-Hooks: [active / NOT FOUND — re-install plugin]
-jq: [found / NOT FOUND — install with brew install jq]
+Hooks:   [active / NOT FOUND — re-install plugin]
+jq:      [found / NOT FOUND — install with brew install jq]
+pandoc:  [found / NOT FOUND — install with brew install pandoc (needed for URL ingestion)]
 
 Next steps:
 - Add knowledge: /firefox-wiki:add <statement>
@@ -132,3 +140,4 @@ Next steps:
 Replace the bracketed placeholders with the actual detected state:
 - `Hooks`: `active` if `log-wiki-read.sh` was found, otherwise `NOT FOUND — re-install plugin`
 - `jq`: `found` if jq was found, otherwise `NOT FOUND — install with brew install jq`
+- `pandoc`: `found` if pandoc was found, otherwise `NOT FOUND — install with brew install pandoc (needed for URL ingestion)`

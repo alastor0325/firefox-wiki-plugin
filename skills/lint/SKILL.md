@@ -84,11 +84,11 @@ Find any `.md` file exceeding 300 lines. Report each as a candidate for splittin
 
 ### 7. Spec staleness check
 
-For every file under `$WIKI_PATH/specs/` that contains a `<!-- spec-source: <url> -->` comment:
+For every file under `$WIKI_PATH/specs/` and `$WIKI_PATH/platform/` that contains a `<!-- source-url: <url> -->` comment:
 
 1. Extract the URL and stored ETag/Last-Modified:
    ```bash
-   grep "spec-source\|spec-etag\|spec-last-modified" <file>
+   grep "source-url\|source-etag\|source-last-modified" <file>
    ```
 
 2. Fetch current headers (no body download):
