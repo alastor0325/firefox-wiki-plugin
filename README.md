@@ -96,7 +96,7 @@ brew install jq pandoc && cargo install bmo-to-md
   verify-report.md     # Latest verification report
 ```
 
-All pages are plain Markdown with `[[wiki-links]]`. You can open `~/firefox-wiki/` as an [Obsidian](https://obsidian.md) vault to browse and search the accumulated knowledge visually — no configuration needed.
+All pages are plain Markdown with `[[wiki-links]]`. You can open the wiki directory as an [Obsidian](https://obsidian.md) vault to browse and search the accumulated knowledge visually — no configuration needed.
 
 ---
 
