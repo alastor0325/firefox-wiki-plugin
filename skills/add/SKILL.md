@@ -14,9 +14,30 @@ Classify the input:
 
 | Pattern | Route |
 |---|---|
-| Starts with `http://` or `https://` | → **Spec ingest path** (see below) |
+| Starts with `http://` or `https://` | → **URL ingest path** |
+| Local path ending in `.pdf` | → **PDF ingest path** |
 | Starts with `bug ` followed by digits | → **Bug ingest path**: invoke the `firefox-wiki:ingest` skill with the bug ID |
 | Anything else | → **Fact path** (existing behavior) |
+
+---
+
+## Content policy — distillation only
+
+**Never copy spec text verbatim into the wiki.** Always distill: extract the intent, rules, and facts and rewrite them in your own words.
+
+This applies to all sources but is especially critical for:
+
+| Spec type | Examples | Reason |
+|---|---|---|
+| **Public specs** | WHATWG, W3C, IETF RFC, Khronos | Best practice — keep wiki concise |
+| **Private/paid specs** | ISO, IEC, ITU-T (H.264, HEVC, MPEG-*, AAC) | Legal — verbatim reproduction is prohibited |
+
+When ingesting a private spec, add a notice at the top of each created page:
+
+```markdown
+> **Note**: This page contains distilled facts from a private/paid specification
+> (ISO/IEC/ITU-T). No verbatim spec text is reproduced here.
+```
 
 ---
 
@@ -162,6 +183,70 @@ Updated: <list>
 Re-run `/firefox-wiki:add <URL>` to refresh.
 Staleness flagged automatically by `/firefox-wiki:lint --full`.
 ```
+
+---
+
+## PDF ingest path
+
+### P1 — Classify the PDF
+
+Determine whether the PDF is a public or private spec:
+
+| Indicators | Classification |
+|---|---|
+| Filename/title contains ISO, IEC, ITU-T, MPEG, H.264, H.265, HEVC, AAC, MPEG-4 | **Private** — distill only, add notice |
+| IETF RFC, W3C, WHATWG, Khronos, public domain | **Public** — distill only (best practice) |
+| Internal doc, postmortem, design doc | **Private** — distill only |
+
+Determine target directory:
+- Formal standards (ISO, IEC, ITU-T, IETF, W3C, Khronos) → `specs/`
+- Platform/vendor docs (Microsoft, Apple internal PDFs) → `platform/`
+- Everything else → `others/`
+
+### P2 — Read the PDF
+
+Use the Read tool with the `pages` parameter. For large PDFs (>10 pages):
+
+1. First read pages 1-3 to identify the document title, structure, and table of contents.
+2. Map the major sections from the TOC.
+3. Read each major section in chunks (up to 20 pages per call).
+
+```
+Read tool: file_path="<path>", pages="1-3"   # TOC / structure
+Read tool: file_path="<path>", pages="4-20"  # first section
+... and so on
+```
+
+### P3 — Determine ingest strategy
+
+- If the PDF is a **spec with clear sections** (most ISO/ITU/IETF docs): section-based, one wiki page per major section — same as URL spec ingest (S4a).
+- If the PDF is a **single-topic document** (design doc, postmortem, short reference): single page — same as URL single-page ingest (S4b).
+
+### P4 — Create pages
+
+Follow the same distillation rules as URL ingest (S4a or S4b). For private specs, prepend the notice to each page:
+
+```markdown
+> **Note**: This page contains distilled facts from a private/paid specification
+> (ISO/IEC/ITU-T). No verbatim spec text is reproduced here.
+```
+
+Use this metadata block (no ETag — local file):
+
+```markdown
+<!-- source-url: file://<absolute-path> -->
+<!-- source-fetched: <FETCH_DATE> -->
+<!-- source-md5: <md5 of the file> -->
+```
+
+Compute the MD5:
+```bash
+md5 "<path>"   # macOS
+```
+
+### P5 — Update INDEX.md, log, and push
+
+Same as URL ingest steps S5 and S6. Commit message: `wiki: ingest <filename>`.
 
 ---
 

@@ -91,15 +91,22 @@ For every file under `$WIKI_PATH/specs/`, `$WIKI_PATH/platform/`, and `$WIKI_PAT
    grep "source-url\|source-etag\|source-last-modified" <file>
    ```
 
-2. Fetch current headers (no body download):
+2. For **remote URLs** (`source-url` starts with `http`): fetch current headers only:
    ```bash
    curl -sI --max-time 10 "<url>"
    ```
+   Compare the current `etag` or `last-modified` header against the stored value.
 
-3. Compare the current `etag` or `last-modified` header against the stored value.
-   - If **unchanged**: mark as current.
-   - If **changed or missing**: flag as stale.
-   - If the `curl` request **fails** (timeout, network error): mark as "unverified — check manually".
+   For **local PDFs** (`source-url` starts with `file://`): compute current MD5:
+   ```bash
+   md5 "<local-path>"   # macOS
+   ```
+   Compare against the stored `source-md5` value.
+
+3. Verdict:
+   - **Unchanged**: mark as current.
+   - **Changed**: flag as stale.
+   - **File missing / curl failed**: mark as "unverified — check manually".
 
 4. Report stale pages as:
    > `specs/<file>.md` — spec updated since last ingest (ETag changed). Re-run `/firefox-wiki:add <url>` to refresh.
