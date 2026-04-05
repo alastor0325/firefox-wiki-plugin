@@ -1,43 +1,124 @@
 # firefox-wiki-plugin
 
-A Claude Code plugin that provides persistent knowledge management for Firefox engineers. Automatically ingests investigation findings into a structured wiki, looks up prior knowledge before investigations, and monitors usage to evaluate effectiveness.
+A Claude Code plugin that maintains a persistent Firefox knowledge wiki. It automatically ingests learnings after each bug fix, looks up prior knowledge before investigations, keeps spec references current, and enforces a content policy that prevents sensitive security information from leaking.
 
-## User Commands
+## How it works
 
-These are the only commands you need to use directly:
+```
+You land a patch  →  PostToolUse hook fires  →  /firefox-wiki:ingest extracts knowledge
+                                                  and writes to components/ relations/ bugs/
+
+You start an investigation  →  /firefox-wiki:lookup searches the wiki
+                                and surfaces relevant components, patterns, and prior bugs
+
+You add a spec URL  →  /firefox-wiki:add fetches, distills, and stores it in specs/<group>/
+```
+
+The wiki lives in a separate git repo (`~/firefox-wiki/` by default, or `$WIKI_PATH`).
+
+---
+
+## User commands
 
 | Command | Purpose |
 |---|---|
-| `/firefox-wiki:init` | Set up wiki directory structure (run once after cloning) |
-| `/firefox-wiki:add <input>` | Add knowledge to the wiki — accepts natural language, a spec URL, or `bug <id>` |
-| `/firefox-wiki:lint` | Check wiki integrity (`--lightweight` or `--full`) |
-| `/firefox-wiki:stats` | View usage metrics and hit rate (run monthly) |
+| `/firefox-wiki:init` | One-time setup: create wiki directory structure, verify dependencies |
+| `/firefox-wiki:add <input>` | Add knowledge — accepts a spec URL, `bug <id>`, or natural language fact |
+| `/firefox-wiki:lint` | Check wiki integrity. Use `--full` for monthly health checks |
+| `/firefox-wiki:stats` | View usage metrics and lookup hit rate |
 
-### `/firefox-wiki:add` examples
+### `/firefox-wiki:add` input types
 
-```
-/firefox-wiki:add AudioSink consumes decoded frames on a dedicated thread, not the MDSM thread
-/firefox-wiki:add https://html.spec.whatwg.org/multipage/media.html
-/firefox-wiki:add bug 2026875
-```
-
-## Agent-Invoked Skills
-
-These run automatically — you do not invoke them directly:
-
-| Skill | Triggered by |
+| Input | What happens |
 |---|---|
-| `wiki-lookup` | Automatically before any bug investigation or triage session |
-| `wiki-ingest` | Invoked by `wiki-add bug <id>` to extract and store investigation knowledge |
+| `https://...` | Fetches the URL, distills it into one or more spec pages under `specs/` |
+| Local `/path/to/file.pdf` | Reads the PDF and distills it into spec pages |
+| `bug 2026875` | Delegates to the `ingest` skill to extract knowledge from the bug |
+| Natural language | Classifies and writes to the appropriate `components/`, `relations/`, or `patterns/` page |
+
+**Examples:**
+```
+/firefox-wiki:add https://www.w3.org/TR/media-source/
+/firefox-wiki:add https://www.rfc-editor.org/rfc/rfc6716
+/firefox-wiki:add bug 2026875
+/firefox-wiki:add AudioSink runs on the MDSM task queue, not its own thread
+```
+
+---
+
+## Agent-invoked skills (hidden from users)
+
+These run automatically via hooks and are not intended to be called directly.
+
+| Skill | When it runs |
+|---|---|
+| `ingest` | After every `git commit` in a Firefox repo — extracts knowledge from the landed patch |
+| `lookup` | Before any bug investigation or triage session — surfaces relevant prior knowledge |
+
+---
+
+## Hooks
+
+Three `PostToolUse` hooks run silently in the background:
+
+| Hook | Trigger | Action |
+|---|---|---|
+| Auto-ingest | `Bash` tool runs `git commit` in a Firefox repo | Calls `/firefox-wiki:ingest --auto` |
+| Read logging | `Read` tool reads a file under `firefox-wiki/` | Appends a `wiki_read` event to `usage-log.jsonl` |
+| Lint | `Write` or `Edit` tool modifies a file under `firefox-wiki/` | Runs `/firefox-wiki:lint --lightweight` |
+
+---
+
+## Wiki structure
+
+```
+~/firefox-wiki/
+  components/          # One page per Firefox class or subsystem
+  relations/           # Cross-component interaction protocols
+  patterns/            # Reusable mechanisms (e.g. WaitForData protocol)
+  bugs/                # Learning pages for non-security resolved bugs
+  specs/
+    html-media/        # WHATWG HTML §4.8 media elements
+    media-source/      # W3C MSE
+    encrypted-media/   # W3C EME
+    webcodecs/         # W3C WebCodecs
+    web-audio-api/     # W3C Web Audio API
+    webrtc-pc/         # W3C WebRTC
+    mediacapture-*/    # W3C Media Capture specs
+    mediasession/      # W3C Media Session
+    matroska/          # Matroska/WebM container
+    rfc*/              # IETF RFCs (VP8, Opus, FLAC, HLS, RTP)
+    ...
+  INDEX.md             # Master index — read first in every session
+  log.md               # Human-readable change history
+  usage-log.jsonl      # Machine-readable event log
+```
+
+---
+
+## Content policy
+
+**Never write to the wiki:**
+- PoC or testcase code that triggers a crash
+- Attack vectors, exploit chains, or race timing sequences
+- Crash addresses, allocation sizes, or memory offsets
+- Bug numbers of security bugs that are still restricted on Bugzilla
+- Pre-fix conditions stated as current facts ("must do X to avoid Y")
+
+**For security bugs:** extract only neutral, always-true structural facts (component role, ownership model, threading). If no such facts exist, write nothing.
+
+**For specs:** always distill — never copy verbatim. For private/paid specs (ISO, IEC, ITU-T), add the required notice at the top of each page.
+
+---
 
 ## Install
 
 ```shell
-/plugin marketplace add alastor0325/firefox-wiki-plugin
-/plugin install firefox-wiki@firefox-wiki-plugin
+/plugin marketplace add firefox-wiki@firefox-wiki-local
+/plugin install firefox-wiki@firefox-wiki-local
 ```
 
-Then clone the wiki content repo and initialize:
+Clone the wiki content repo and initialize:
 
 ```bash
 git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
@@ -47,16 +128,24 @@ git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
 /firefox-wiki:init
 ```
 
-## Requirements
+### Requirements
 
-- `jq` must be installed (`brew install jq` on macOS)
-- Wiki content repo cloned to `~/firefox-wiki/` (or set `$WIKI_PATH`)
+- `pandoc` — for URL/HTML spec ingestion (`brew install pandoc`)
+- `jq` — for hook scripts (`brew install jq`)
+- `bmo-to-md` — for bug ingestion (`cargo install bmo-to-md`)
 
-## Dev
+---
+
+## Local development
+
+The plugin is loaded via a local marketplace. Changes to `skills/*/SKILL.md` or `hooks/hooks.json` take effect immediately — no reinstall needed (the cache is a symlink to this repo).
 
 ```bash
-claude --plugin-dir . -p '/firefox-wiki:init'
+# Validate plugin structure
 claude plugin validate .
+
+# Test a skill directly
+claude -p '/firefox-wiki:lint --full'
 ```
 
-Bump `version` in `.claude-plugin/plugin.json` before every commit that changes skills, hooks, or scripts.
+Bump `version` in `.claude-plugin/plugin.json` before any commit that changes skills or hooks.
