@@ -55,7 +55,7 @@ cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +
 
 ## When to invoke
 
-- `--lightweight`: automatically after every wiki write (Hook 3). Checks only recently modified files for broken links.
+- `--lightweight`: runs automatically after every wiki write (triggered by the PostToolUse hook on Write/Edit). Checks only recently modified files for broken links.
 - `--full`: run all checks that are due based on per-page intervals. Pages not yet past their interval are skipped.
 - `--force`: like `--full` but ignores intervals — checks every page regardless of `lint-last`.
 
