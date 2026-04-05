@@ -47,7 +47,7 @@ Append-only. One entry per ingest or significant update.
 ```markdown
 # Glossary
 
-Use `/firefox-wiki:add` to populate this file with abbreviations, HRESULT codes, and nsresult codes as you encounter them.
+Use `/firefox-wiki:add` to populate this file with quick-reference entries as you encounter them.
 ```
 
 **`$WIKI_PATH/INDEX.md`** — create with this content, substituting today's date for `(today's date)`:
