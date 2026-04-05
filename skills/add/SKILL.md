@@ -181,6 +181,15 @@ Append to `usage-log.jsonl`:
 {"date":"<ISO timestamp>","event_type":"url-ingest","trigger":"user","url":"<SRC_URL>","directory":"<specs|platform|others>","pages_created":[...],"pages_updated":[...]}
 ```
 
+Prepend an entry to `log.md` (after the `---` separator, before any prior entries):
+```markdown
+## <YYYY-MM-DD> — Ingest <domain/path>
+
+Pages created: <list of relative paths>
+Pages updated: <list, or "none">
+Source: <SRC_URL>
+```
+
 ```bash
 cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest <domain/path>" && git push
 ```
@@ -259,7 +268,7 @@ md5 "<path>"   # macOS
 
 ### P5 — Update INDEX.md, log, and push
 
-Same as URL ingest steps S5 and S6. Commit message: `wiki: ingest <filename>`.
+Same as URL ingest steps S5 and S6 (including the `log.md` entry). Commit message: `wiki: ingest <filename>`.
 
 ---
 
@@ -365,10 +374,20 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned.
 
 ### 7. Update INDEX.md if a new page was created
 
-### 8. Append to usage-log.jsonl
+### 8. Update logs
 
+Append to `usage-log.jsonl`:
 ```json
 {"date":"<ISO 8601 timestamp>","event_type":"add","trigger":"user","file":"<relative path from WIKI_PATH>","confidence":"<High|Medium|Low>"}
+```
+
+Prepend an entry to `log.md` (after the `---` separator, before any prior entries):
+```markdown
+## <YYYY-MM-DD> — <one-line summary of what was added>
+
+File: `<relative path>`
+Confidence: <High|Medium|Low>
+Source: <bug number, spec section, or colleague name>
 ```
 
 ### 9. Lint wiki-links
