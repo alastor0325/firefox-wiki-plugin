@@ -1,7 +1,7 @@
 ---
 name: init
 description: Initialize the Firefox Knowledge Wiki directory structure. Run once after cloning the wiki content repo.
-version: 0.1.0
+version: 0.2.0
 ---
 
 ## Steps
@@ -166,15 +166,104 @@ Last updated: (today's date)
 See [[log.md]] for full history.
 ```
 
-### 8. Print a status report
+### 8. Check wiki maintenance instruction
+
+This step ensures the wiki write-back rule is active in the user's environment. It is **non-blocking** — if the user declines, continue to step 9.
+
+The wiki maintenance paragraph to check for / add is:
+
+```
+## Wiki maintenance
+After any investigation, bug fix, or code review session, write back any
+non-obvious facts discovered to the Firefox Knowledge Wiki (~/.firefox-wiki/
+or $WIKI_PATH) using /firefox-wiki:add. This includes: spec-component
+mappings, Firefox deviations from spec, component behaviors,
+threading/ownership facts, and architectural observations.
+
+Every addition must cite a verifiable source:
+- Code facts: a Searchfox permanent URL (e.g. https://searchfox.org/mozilla-central/rev/<hash>/path/to/file.cpp#42)
+- Spec facts: spec name + section (e.g. "ITU-T H.265 §7.4.8", "ISO/IEC 14496-15:2022 §4.2")
+- Bug facts: Bugzilla bug number (e.g. bug 2026875)
+
+Do not add facts from memory or inference alone — only what you can directly
+point to. If you cannot provide a source, do not write to the wiki.
+```
+
+**Detection — check for existing instruction:**
+
+1. Look for an `AGENTS.md` in the current working directory (the repo the user is working in):
+   ```bash
+   ls AGENTS.md 2>/dev/null || echo "NOT FOUND"
+   ```
+2. If found, check whether it already contains the wiki maintenance section:
+   ```bash
+   grep -q "Wiki maintenance" AGENTS.md && echo "PRESENT" || echo "ABSENT"
+   ```
+3. If not found in the repo, check `~/.claude/CLAUDE.md`:
+   ```bash
+   grep -q "Wiki maintenance" ~/.claude/CLAUDE.md 2>/dev/null && echo "PRESENT" || echo "ABSENT"
+   ```
+
+**Decision logic:**
+
+| AGENTS.md exists | Paragraph present | Action |
+|---|---|---|
+| Yes | Yes | Mark `[✓]` — already configured. No action needed. |
+| Yes | No | Ask permission to add to `AGENTS.md` (see prompt A below) |
+| No | Present in `~/.claude/CLAUDE.md` | Mark `[✓]` — already configured via local config. |
+| No | Absent | Ask permission to add to `~/.claude/CLAUDE.md` (see prompt B below) |
+
+**Prompt A** (AGENTS.md exists, paragraph absent):
+
+```
+Wiki maintenance instruction not found in AGENTS.md.
+
+This instruction tells Claude to write back facts discovered during
+investigations to the wiki, with verifiable source citations.
+
+Add it to AGENTS.md now? (yes / no / skip-always)
+```
+
+- **yes** → append the paragraph to `AGENTS.md`, mark `[✓]`, continue
+- **no** → mark `[–]` (skipped this time), continue
+- **skip-always** → append `WIKI_MAINTENANCE_SKIP=1` to `~/.claude/CLAUDE.md` so this check is suppressed in future runs, mark `[–]`, continue
+
+**Prompt B** (`~/.claude/CLAUDE.md`, paragraph absent):
+
+```
+Wiki maintenance instruction not found.
+
+No AGENTS.md was found in the current directory. This instruction can be
+added to your global Claude config (~/.claude/CLAUDE.md) instead, so it
+applies in all sessions while you evaluate it. Once the approach is proven,
+you can move it to your repo's AGENTS.md and remove it from the global config.
+
+Add it to ~/.claude/CLAUDE.md now? (yes / no / skip-always)
+```
+
+- **yes** → append the paragraph to `~/.claude/CLAUDE.md`, mark `[✓]`, continue
+- **no** → mark `[–]` (skipped this time), continue
+- **skip-always** → append `WIKI_MAINTENANCE_SKIP=1` to `~/.claude/CLAUDE.md` so this check is suppressed in future runs, mark `[–]`, continue
+
+**Skip check:** Before showing any prompt, check whether `WIKI_MAINTENANCE_SKIP=1` is already present in `~/.claude/CLAUDE.md`. If so, skip this step silently.
+
+Also update the pre-flight checklist in step 0 to include this item:
+
+```
+  [ ] Wiki maintenance instruction active
+```
+
+### 9. Print a status report
 
 ```
 Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
 
 Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
+Maintenance: <✓ active in AGENTS.md | ✓ active in ~/.claude/CLAUDE.md | – skipped>
 
 Next steps:
-- Add knowledge:       /firefox-wiki:add <statement or URL>
-- Before investigating: wiki lookup runs automatically
+- Add knowledge:        /firefox-wiki:add <statement or URL>
+- Before investigating:  wiki lookup runs automatically
+- Write-back:           facts discovered during sessions are written back automatically
 ```
