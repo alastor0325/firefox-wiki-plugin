@@ -102,7 +102,7 @@ All pages are plain Markdown with `[[wiki-links]]`. You can open the wiki direct
 
 ---
 
-## Is it helping?
+## Measuring impact
 
 Run `/firefox-wiki:stats` after a few investigation sessions. Look for:
 
