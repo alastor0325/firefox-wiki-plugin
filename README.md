@@ -102,16 +102,6 @@ All pages are plain Markdown with `[[wiki-links]]`. You can open the wiki direct
 
 ---
 
-## Measuring impact
-
-Run `/firefox-wiki:stats` after a few investigation sessions. Look for:
-
-- **Hit rate** — what percentage of code searches were preceded by a wiki lookup. A rising hit rate means Claude is finding prior knowledge before searching code.
-- **Most-consulted pages** — which components and patterns Claude reaches for most. If the top pages match the areas you work in, the wiki is well-targeted.
-- **Lookup outcomes** — how often a lookup led to skipping a code search entirely vs. still searching. This is the direct measure of time saved.
-
-If hit rate is low after several sessions, the wiki likely lacks coverage for your area — use `/firefox-wiki:add` to seed it with the components you work on most.
-
 ## Accuracy
 
 The wiki is only useful if its facts are correct. Three layers work together to ensure this:
@@ -124,6 +114,18 @@ After every wiki write, a hook checks the modified pages for broken links, dead 
 
 **Verify — confirm against ground truth.**
 For pages that are overdue, `ingest` and `add` will nudge you to run `/firefox-wiki:verify`. This re-reads the original primary sources — Firefox source code, spec URLs, vendor docs — and flags any facts that no longer match. Critically, verify is forbidden from reading the wiki itself, so it cannot mistake a stale wiki page for ground truth.
+
+---
+
+## Measuring search time saved
+
+Run `/firefox-wiki:stats` after a few investigation sessions. Look for:
+
+- **Hit rate** — what percentage of code searches were preceded by a wiki lookup. A rising hit rate means Claude is finding prior knowledge before searching code.
+- **Most-consulted pages** — which components and patterns Claude reaches for most. If the top pages match the areas you work in, the wiki is well-targeted.
+- **Lookup outcomes** — how often a lookup led to skipping a code search entirely vs. still searching. This is the direct measure of time saved.
+
+If hit rate is low after several sessions, the wiki likely lacks coverage for your area — use `/firefox-wiki:add` to seed it with the components you work on most.
 
 ---
 
