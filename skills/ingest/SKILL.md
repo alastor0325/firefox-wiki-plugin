@@ -19,8 +19,11 @@ Apply these rules before writing anything to the wiki:
 
 1. Do **not** create a `bugs/<id>.md` page for it
 2. Do **not** include the bug number in any page content
-3. Extract only the **component-level pattern** or **interaction edge case** and write it to the relevant `components/` or `relations/` page under **Known Quirks** or **Edge Cases**
-4. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
+3. Do **not** describe the vulnerability root cause, the pre-fix condition, or the fix itself
+4. Do **not** write "must do X" or "must not do Y" invariants derived from the bug — these describe the pre-fix state and are no longer true once the fix lands
+5. Write **only** neutral, always-true structural facts: component role, ownership model, what thread it runs on, what it communicates with. Ask: "Is this fact true right now in the codebase, regardless of any bug?" If no, omit it.
+6. If no neutral structural facts can be extracted, do **not** create or update any page
+7. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
 
 For non-security bugs, the full `bugs/<id>.md` page and explicit bug number citations are appropriate.
 

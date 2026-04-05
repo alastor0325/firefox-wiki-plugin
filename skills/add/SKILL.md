@@ -36,8 +36,11 @@ When the source is a security bug (`sec-*` keyword or still restricted):
 
 1. Do **not** create a `bugs/<id>.md` page for it
 2. Do **not** include the bug number in page content
-3. Extract only the **component-level pattern** or **interaction edge case** and write it to the relevant `components/` or `relations/` page under **Known Quirks** or **Edge Cases**
-4. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
+3. Do **not** describe the vulnerability, the pre-fix condition, or the fix
+4. Do **not** write "must do X" safety invariants derived from the bug — these describe the pre-fix state, not current truth
+5. Write **only** neutral, always-true structural facts: component role, ownership, threading model, communication patterns. Ask: "Is this fact true right now, regardless of any bug?" If no, omit it.
+6. If no neutral structural facts can be extracted, write nothing
+7. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
 
 ### Distillation — never copy verbatim
 
