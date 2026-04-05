@@ -118,7 +118,7 @@ else:
 For `components/` and `relations/` pages that are due, additionally run the source-change check:
 
 ```bash
-FIREFOX_ROOT=$(git -C ~/firefox rev-parse --show-toplevel 2>/dev/null || echo ~/firefox)
+FIREFOX_ROOT=${MOZ_SRC:-$(git rev-parse --show-toplevel 2>/dev/null)}
 CURRENT_REV=$(git -C $FIREFOX_ROOT rev-parse HEAD)
 lint-source-rev = LINT_LOG[page]["lint-source-rev"] (empty if absent)
 
@@ -189,7 +189,7 @@ For each due page, find all `searchfox.org/mozilla-central/rev/<hash>/...` URLs:
 
 2. Check file existence in current Firefox tree:
    ```bash
-   ls $FIREFOX_ROOT/<path> 2>/dev/null && echo "EXISTS" || echo "MISSING"
+   ls "$FIREFOX_ROOT/<path>" 2>/dev/null && echo "EXISTS" || echo "MISSING"
    ```
 
 3. If file exists, check symbol from surrounding sentence:

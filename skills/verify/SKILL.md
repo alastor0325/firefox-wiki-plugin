@@ -107,8 +107,10 @@ still supports the claim.
 
 IMPORTANT: Do NOT read any file under ~/firefox-wiki/ or $WIKI_PATH.
 Verify exclusively from primary sources:
-- Firefox source code: use searchfox-cli, MCP tools, Grep, Glob, or Read
-  on files under ~/firefox/ only
+- Firefox source code: use searchfox-cli or MCP tools (preferred — no local
+  path needed); if reading local files, restrict to the Firefox repo root
+  (detect via `git rev-parse --show-toplevel` from any Firefox working directory,
+  or from the $MOZ_SRC environment variable)
 - Spec facts: fetch the authoritative spec URL via WebFetch
 - Vendor doc facts: fetch the official vendor URL via WebFetch
 
