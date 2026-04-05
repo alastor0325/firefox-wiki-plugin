@@ -72,7 +72,7 @@ brew install jq pandoc && cargo install bmo-to-md
 
 ---
 
-## Wiki structure
+## Wiki structure (example)
 
 ```
 ~/firefox-wiki/
