@@ -1,7 +1,8 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
-version: 0.4.0
+version: 0.5.0
+user-invocable: false
 ---
 
 ## Lint state: lint-log.json
