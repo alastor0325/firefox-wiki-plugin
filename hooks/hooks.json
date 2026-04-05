@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "echo $HOOK_INPUT | jq -r 'if (.tool_input.command // \"\") | test(\"git commit\") then \"COMMIT\" else \"SKIP\" end' | grep -q COMMIT && REMOTE=$(git remote get-url origin 2>/dev/null || echo \"\") && echo \"$REMOTE\" | grep -qE '(mozilla-central|firefox|gecko)' && claude -p '/firefox-wiki:ingest --auto' || true"
+        }]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [{
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh"
+        }]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "echo $HOOK_INPUT | jq -r '.tool_input.file_path // \"\"' | grep -q 'firefox-wiki/' && claude -p '/firefox-wiki:lint --lightweight' || true"
+        }]
+      }
+    ]
+  }
+}
