@@ -9,7 +9,7 @@ user-invocable: false
 
 The verify skill is the correctness layer on top of lint. Where lint checks structure and staleness signals, verify re-reads actual sources and asks: "does this code / spec still support this claim?"
 
-It is slow and judgment-heavy — run it quarterly, not after every write.
+It is slow and judgment-heavy — run it based on per-directory intervals, not after every write.
 
 ## Verify intervals
 
