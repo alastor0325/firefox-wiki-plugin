@@ -125,7 +125,7 @@ Run `mkdir -p` for each of the following (it is safe to run even if they already
 - `$WIKI_PATH/patterns/`
 - `$WIKI_PATH/bugs/`
 
-### 7. Create files if they do not already exist
+### 8. Create files if they do not already exist
 
 Never overwrite a file that is already present. Check for existence before writing each one.
 
@@ -185,7 +185,7 @@ Last updated: (today's date)
 See [[log.md]] for full history.
 ```
 
-### 8. Check wiki maintenance instruction
+### 9. Check wiki maintenance instruction
 
 This step ensures the wiki write-back rule is active in the user's global Claude config. It is **non-blocking** — if the user declines, continue to step 9.
 
@@ -240,7 +240,7 @@ Also update the pre-flight checklist in step 0 to include this item:
   [ ] Wiki maintenance instruction active
 ```
 
-### 9. Print a status report
+### 10. Print a status report
 
 ```
 Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
