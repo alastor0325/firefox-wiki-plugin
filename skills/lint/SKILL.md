@@ -1,7 +1,7 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
-version: 0.6.0
+version: 0.7.0
 user-invocable: false
 ---
 
@@ -95,6 +95,24 @@ Runs automatically after each wiki write. Fast — structural checks only on rec
 3. If broken links found: print them clearly.
 
 4. If all valid: silent success — print nothing.
+
+5. **Validate and repair `usage-log.jsonl`**:
+
+   Parse `$WIKI_PATH/usage-log.jsonl`. For each line:
+   - Skip blank lines.
+   - If the line is not valid single-line JSON: attempt to recover by collecting consecutive lines until a valid JSON object closes, then rewrite as single line.
+   - If the parsed object is missing `event_type`: infer it from other fields:
+     - Has `source_url` or `spec_title` → `"url-ingest"`
+     - Has `directory` containing `pdf` or has `pdf` in any value → `"pdf-ingest"`
+     - Has `bug_id` → `"ingest"`
+     - Otherwise → `"unknown"`
+   - If the object uses `timestamp` instead of `date`: rename to `date`.
+
+   If any repairs were made: rewrite the file as valid single-line JSONL (one object per line) and print:
+   ```
+   usage-log.jsonl: repaired <n> malformed entries
+   ```
+   If the file is already valid: silent success.
 
 ---
 
