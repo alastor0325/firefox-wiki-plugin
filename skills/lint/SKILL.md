@@ -189,9 +189,10 @@ For each due spec page with a `<!-- source-url: <url> -->` comment:
    ```
    Compare current `etag` or `last-modified` against stored value.
 
-   For **local PDFs** (`file://`): compute current MD5:
+   For **local PDFs** (`file://`): strip the `file://` prefix and expand `$HOME`:
    ```bash
-   md5 "<local-path>"
+   LOCAL_PATH=$(echo "<url>" | sed 's|^file://||' | sed "s|^\$HOME|$HOME|")
+   md5 "$LOCAL_PATH"
    ```
    Compare against stored `source-md5`.
 

@@ -283,12 +283,12 @@ Follow the same distillation rules as URL ingest (S4a or S4b). For private specs
 Use this metadata block (no ETag — local file):
 
 ```markdown
-<!-- source-url: file://<absolute-path> -->
+<!-- source-url: file://$HOME/<path-relative-to-home> -->
 <!-- source-fetched: <FETCH_DATE> -->
 <!-- source-md5: <md5 of the file> -->
 ```
 
-Compute the MD5:
+Compute the path relative to `$HOME` by stripping the user's home directory prefix from the absolute path. Compute the MD5:
 ```bash
 md5 "<path>"   # macOS
 ```
