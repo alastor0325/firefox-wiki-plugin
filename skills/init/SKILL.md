@@ -17,6 +17,7 @@ Firefox Knowledge Wiki — Pre-flight checks
   [ ] jq installed
   [ ] pandoc installed
   [ ] log-wiki-read.sh hook present
+  [ ] git user.email configured
 ```
 
 Then run each check in order. For each item, update its status as you go:
@@ -94,7 +95,25 @@ Warning: log-wiki-read.sh not found. Wiki read events will not be logged.
 Re-install the plugin to fix: /plugin install firefox-wiki@firefox-wiki-plugin
 ```
 
-### 6. Create directory structure
+### 6. Check git user.email
+
+Run:
+```bash
+git config user.email
+```
+
+- **Set**: mark `[✓]` — this value will be used as `user` in all log events.
+- **Not set**: mark `[✗]` and warn (non-blocking — continue):
+
+```
+Warning: git user.email is not configured. All wiki log events will be
+attributed to "unknown", which will make per-person stats meaningless.
+
+Fix with:
+  git config --global user.email "you@mozilla.com"
+```
+
+### 7. Create directory structure
 
 Run `mkdir -p` for each of the following (it is safe to run even if they already exist):
 
@@ -228,6 +247,7 @@ Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
 
 Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
+User:        <email from git config | ✗ not set — run: git config --global user.email "you@mozilla.com">
 Maintenance: <✓ active in AGENTS.md | ✓ active in ~/.claude/CLAUDE.md | – skipped>
 
 You're ready. Just start working on bugs — the plugin will build the wiki automatically.
