@@ -24,7 +24,8 @@ The wiki lives in a separate git repo (`~/firefox-wiki/` by default, or `$WIKI_P
 |---|---|
 | `/firefox-wiki:init` | One-time setup: create wiki directory structure, verify dependencies |
 | `/firefox-wiki:add <input>` | Add knowledge — accepts a spec URL, `bug <id>`, or natural language fact |
-| `/firefox-wiki:lint` | Check wiki integrity. Use `--full` for monthly health checks |
+| `/firefox-wiki:lint` | Check wiki integrity. Use `--full` for interval-based accuracy checks |
+| `/firefox-wiki:verify` | Quarterly correctness check — re-reads cited sources to confirm facts are still true |
 | `/firefox-wiki:stats` | View usage metrics and lookup hit rate |
 
 ### `/firefox-wiki:add` input types
@@ -54,6 +55,7 @@ These run automatically via hooks and are not intended to be called directly.
 |---|---|
 | `ingest` | After every `git commit` in a Firefox repo — extracts knowledge from the landed patch |
 | `lookup` | Before any bug investigation or triage session — surfaces relevant prior knowledge |
+| `verify` | Quarterly — re-reads cited sources via gecko-navigator to confirm facts are still correct. Forbidden from reading the wiki itself to avoid circular verification. |
 
 ---
 
@@ -78,21 +80,35 @@ Three `PostToolUse` hooks run silently in the background:
   patterns/            # Reusable mechanisms (e.g. WaitForData protocol)
   bugs/                # Learning pages for non-security resolved bugs
   specs/
-    html-media/        # WHATWG HTML §4.8 media elements
-    media-source/      # W3C MSE
-    encrypted-media/   # W3C EME
-    webcodecs/         # W3C WebCodecs
-    web-audio-api/     # W3C Web Audio API
-    webrtc-pc/         # W3C WebRTC
-    mediacapture-*/    # W3C Media Capture specs
-    mediasession/      # W3C Media Session
-    matroska/          # Matroska/WebM container
-    rfc*/              # IETF RFCs (VP8, Opus, FLAC, HLS, RTP)
-    ...
+    HTMLMedia_WHATWG/  # WHATWG HTML §4.8 media elements
+    MSE_W3C/           # W3C MSE
+    EME_W3C/           # W3C EME
+    WebCodecs_W3C/     # W3C WebCodecs
+    WebAudio_W3C/      # W3C Web Audio API
+    WebRTC_W3C/        # W3C WebRTC
+    AVC_ITU_H264/      # ITU-T H.264
+    HEVC_ITU_H265/     # ITU-T H.265
+    ISOBMFF_ISO_14496_12/  # ISO/IEC 14496-12
+    CENC_ISO_23001_7/  # ISO/IEC 23001-7 (Common Encryption)
+    ...                # (topic_org_identifier naming convention)
   INDEX.md             # Master index — read first in every session
   log.md               # Human-readable change history
   usage-log.jsonl      # Machine-readable event log
+  lint-log.json        # Per-page lint and verify timestamps (lint-last, verify-last, lint-source-rev)
+  verify-report.md     # Latest correctness verification report
 ```
+
+---
+
+## Accuracy model
+
+Wiki accuracy is maintained through three layers:
+
+| Layer | Mechanism | Frequency |
+|---|---|---|
+| **Write-time** | All facts must cite a verifiable source (Searchfox URL, spec §section, bug number, or official vendor doc). Enforced via `~/.claude/CLAUDE.md` and agent instructions. | Every write |
+| **Lint** | Checks structure, broken links, dead Searchfox URLs, missing class definitions, spec ETag changes. Per-page intervals: components 14 days, specs 180 days. State tracked in `lint-log.json`. | Automatic after writes; `--full` on schedule |
+| **Verify** | Re-reads cited sources from primary sources only (Firefox source code, spec URLs, vendor docs). Forbidden from reading the wiki itself to avoid circular verification. Flags stale or unverifiable facts for correction. | Quarterly |
 
 ---
 
