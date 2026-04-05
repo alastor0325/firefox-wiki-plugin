@@ -4,6 +4,8 @@ A Claude Code plugin that gives Claude a persistent memory of Firefox media subs
 
 Without this plugin, Claude re-searches the same components, re-reads the same files, and re-derives the same facts every session. With it, knowledge accumulates: every investigation adds to the wiki, and every future investigation starts from what was already learned.
 
+> **The wiki content is maintained in a shared private repo.** You need access to get the accumulated knowledge — without it you start from an empty wiki and lose the team's prior learnings. Request access from :alwu (alwu@mozilla.com) before installing.
+
 ## What you get automatically
 
 Once installed, no ongoing effort is required.
