@@ -1,32 +1,60 @@
 ---
 name: lint
-description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full for monthly health checks.
-version: 0.2.0
+description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
+version: 0.3.0
 ---
+
+## Lint metadata
+
+Every wiki page carries two metadata comments that drive interval-based linting:
+
+```
+<!-- lint-last: 2026-04-05 -->
+<!-- lint-source-rev: abc123def -->
+```
+
+- `lint-last` — date of last successful lint for this page (ISO 8601)
+- `lint-source-rev` — git hash of the Firefox tree at the time of last lint (components/relations only; omitted for specs/patterns/bugs)
+
+These are written by the lint skill after each page passes its checks. Pages without these comments are treated as never-linted (lint immediately).
+
+## Lint intervals by content type
+
+| Directory | Interval | Source-change check |
+|---|---|---|
+| `components/` | 14 days | Yes — skip if no Firefox commits since `lint-source-rev` |
+| `relations/` | 14 days | Yes — skip if no Firefox commits since `lint-source-rev` |
+| `patterns/` | 90 days | No |
+| `specs/` | 180 days | No — use ETag/MD5 instead |
+| `platform/` | 180 days | No — use ETag/MD5 instead |
+| `others/` | 180 days | No |
+| `bugs/` | Never | Historical record — never re-lint |
 
 ## When to invoke
 
-- `--lightweight`: automatically after every wiki write (Hook 3). Checks only recently modified files.
-- `--full`: monthly, for a comprehensive health check across the entire wiki.
+- `--lightweight`: automatically after every wiki write (Hook 3). Checks only recently modified files for broken links.
+- `--full`: run all checks that are due based on per-page intervals. Pages not yet past their interval are skipped.
+- `--force`: like `--full` but ignores intervals — checks every page regardless of `lint-last`.
 
 ## Mode detection
 
 Parse `$ARGUMENTS`:
 - Contains `--lightweight`: run lightweight mode.
-- Contains `--full`: run full mode.
+- Contains `--force`: run full mode with interval checking disabled.
+- Contains `--full`: run full mode with interval checking enabled.
 - Empty: default to lightweight mode.
 
 ---
 
 ## Lightweight mode
 
-Runs automatically after each wiki write. Scopes checks to recently modified files only.
+Runs automatically after each wiki write. Fast — structural checks only on recently modified files.
 
 ### Steps
 
-1. Identify recently modified wiki files by reading the last entry in `$WIKI_PATH/log.md`, or by running:
+1. Identify recently modified wiki files:
    ```bash
-   ls -lt ~/firefox-wiki/**/*.md | head -5
+   git -C $WIKI_PATH diff --name-only HEAD~1 HEAD 2>/dev/null || ls -lt $WIKI_PATH/**/*.md | head -5
    ```
 
 2. For each recently modified file:
@@ -34,170 +62,194 @@ Runs automatically after each wiki write. Scopes checks to recently modified fil
      ```bash
      rg '\[\[([^\]]+)\]\]' <file> -o --no-filename
      ```
-   - For each extracted `PageName`, check whether `<PageName>.md` exists anywhere under `$WIKI_PATH`:
+   - For each `PageName`, check whether `<PageName>.md` exists anywhere under `$WIKI_PATH`:
      ```bash
-     find ~/firefox-wiki/ -name "<PageName>.md"
+     find $WIKI_PATH -name "<PageName>.md"
      ```
-   - If the file is not found: report a broken link error showing the link text, the file it appears in, and a suggested fix.
+   - If not found: report a broken link error with the link text, source file, and a suggested fix.
 
-3. If broken links are found: print them clearly. Do not continue silently — the output must be visible so the broken link can be fixed immediately.
+3. If broken links found: print them clearly.
 
-4. If all links are valid: print nothing. Silent success, no noise.
+4. If all valid: silent success — print nothing.
 
 ---
 
 ## Full mode
 
-Comprehensive health check across the entire wiki. Run monthly.
+Runs all checks that are due. For each page, first determine whether it needs linting:
 
-### 1. Broken links scan
+### Due check (per page)
 
-Grep all `*.md` files for `[[...]]` patterns. For each link verify the target file exists. Report all broken links grouped by source file.
+```
+TODAY = current date
+lint-last = read from page metadata (or epoch if absent)
+interval = lookup from table above (by directory)
 
-### 2. INDEX.md completeness
+if (TODAY - lint-last) >= interval:
+    → page is DUE — run checks
+else:
+    → page is CURRENT — skip
+```
+
+For `components/` and `relations/` pages that are due, additionally run the source-change check:
+
+```bash
+# Get Firefox repo root
+FIREFOX_ROOT=$(git -C ~/firefox rev-parse --show-toplevel 2>/dev/null || echo ~/firefox)
+
+# Get current HEAD
+CURRENT_REV=$(git -C $FIREFOX_ROOT rev-parse HEAD)
+
+# Check if any relevant files changed since lint-source-rev
+git -C $FIREFOX_ROOT log <lint-source-rev>..<CURRENT_REV> --oneline -- dom/media/ 2>/dev/null
+```
+
+If the log is **empty** (no commits to `dom/media/` since last lint): mark page as **source-unchanged** and skip accuracy checks (only run structural checks). Update `lint-last` to today without updating `lint-source-rev`.
+
+If the log is **non-empty** or `lint-source-rev` is absent: run all checks for this page.
+
+---
+
+### Check 1: Broken links scan
+
+Grep all due `*.md` files for `[[...]]` patterns. For each link verify the target file exists. Report all broken links grouped by source file.
+
+### Check 2: INDEX.md completeness
 
 For every `.md` file under `components/`, `relations/`, and `patterns/`: check that it appears in `INDEX.md`. Report any pages missing from the index.
 
-### 3. Orphaned index entries
+### Check 3: Orphaned index entries
 
 Find every entry in `INDEX.md` that does not have a corresponding file on disk. Report each.
 
-### 4. Stale page detection
+### Check 4: Missing required sections
 
-Find component and relation pages whose last-modified time is 180 or more days ago. List them as:
+Scan each due component page for required section headings:
+- `## Overview` or `## Purpose`
+- `## Relations`
 
-> Potentially stale — verify against current codebase.
+Report any component page missing these headings.
 
-### 5. Missing required sections
+### Check 5: Oversized pages
 
-Scan each component page for the following required section headings:
-- `Purpose`
-- `Known Pitfalls`
-- `Relations`
-- `Bugs That Taught Us`
+Find any due `.md` file exceeding 300 lines. Report as a candidate for splitting.
 
-Report any component page missing one or more of these headings.
+### Check 6: Spec staleness check (specs/ platform/ others/ only)
 
-### 6. Oversized pages
+For each due spec page with a `<!-- source-url: <url> -->` comment:
 
-Find any `.md` file exceeding 300 lines. Report each as a candidate for splitting.
-
-### 7. Spec staleness check
-
-For every file under `$WIKI_PATH/specs/`, `$WIKI_PATH/platform/`, and `$WIKI_PATH/others/` that contains a `<!-- source-url: <url> -->` comment:
-
-1. Extract the URL and stored ETag/Last-Modified:
+1. Extract URL and stored ETag/Last-Modified/MD5:
    ```bash
-   grep "source-url\|source-etag\|source-last-modified" <file>
+   grep "source-url\|source-etag\|source-last-modified\|source-md5" <file>
    ```
 
-2. For **remote URLs** (`source-url` starts with `http`): fetch current headers only:
+2. For **remote URLs**: fetch current headers only:
    ```bash
    curl -sI --max-time 10 "<url>"
    ```
-   Compare the current `etag` or `last-modified` header against the stored value.
+   Compare current `etag` or `last-modified` against stored value.
 
-   For **local PDFs** (`source-url` starts with `file://`): compute current MD5:
+   For **local PDFs** (`file://`): compute current MD5:
    ```bash
-   md5 "<local-path>"   # macOS
+   md5 "<local-path>"
    ```
-   Compare against the stored `source-md5` value.
+   Compare against stored `source-md5`.
 
 3. Verdict:
-   - **Unchanged**: mark as current.
-   - **Changed**: flag as stale.
-   - **File missing / curl failed**: mark as "unverified — check manually".
+   - **Unchanged**: mark current.
+   - **Changed**: flag as stale — "spec updated since last ingest. Re-run `/firefox-wiki:add <url>` to refresh."
+   - **Unreachable / file missing**: mark "unverified — check manually".
 
-4. Report stale pages as:
-   > `specs/<file>.md` — spec updated since last ingest (ETag changed). Re-run `/firefox-wiki:add <url>` to refresh.
+### Check 7: Dead Searchfox links (components/ relations/ only)
 
-### 8. Dead Searchfox links
+For each due page, find all `searchfox.org/mozilla-central/rev/<hash>/...` URLs:
 
-For every `searchfox.org/mozilla-central/rev/<hash>/...` URL found in any wiki page:
+1. Extract `<path>` from URL.
 
-1. Extract the file path and line number from the URL:
-   - URL format: `https://searchfox.org/mozilla-central/rev/<hash>/<path>#<line>`
-   - Extract `<path>` (e.g. `dom/media/AudioSink.cpp`)
-
-2. Check whether the file still exists in the current local Firefox tree:
+2. Check file existence in current Firefox tree:
    ```bash
-   ls ~/firefox/<path> 2>/dev/null && echo "EXISTS" || echo "MISSING"
+   ls $FIREFOX_ROOT/<path> 2>/dev/null && echo "EXISTS" || echo "MISSING"
    ```
-   If `~/firefox/` is not the right path, try to detect the Firefox repo root from `$MOZ_SRC` or common locations.
 
-3. If the file exists, verify the symbol or function mentioned in the surrounding sentence still exists in that file:
+3. If file exists, check symbol from surrounding sentence:
    ```bash
    searchfox-cli --id '<symbol>' --cpp -l 5
    ```
-   Use the symbol name extracted from the sentence immediately surrounding the Searchfox URL.
 
 4. Verdict:
-   - **File missing**: flag as dead link — "file no longer exists at `<path>`"
-   - **Symbol missing**: flag as potentially stale — "symbol `<name>` not found in current tree; fact may be outdated"
-   - **OK**: mark as current
+   - **File missing**: dead link — "file no longer exists at `<path>`"
+   - **Symbol missing**: potentially stale — "symbol `<name>` not found in current tree"
+   - **OK**: current
 
-Report all dead or potentially stale Searchfox links grouped by wiki page.
+### Check 8: Missing citations (components/ relations/ patterns/ only)
 
-### 9. Missing citations
+For each due page, scan for fact lines without a source citation.
 
-Scan all pages under `components/`, `relations/`, and `patterns/` for fact lines that lack a source citation.
+A **fact line**: non-empty, not a heading, not a table delimiter, not inside a code block, contains a class/method/field name or behavioral assertion.
 
-A **fact line** is any non-empty line that:
-- Is not a heading (`#`)
-- Is not a list marker alone (`-`, `*`)
-- Is not a table delimiter (`|---|`)
-- Is not inside a code block (` ``` `)
-- Contains a concrete claim (mentions a class name, method name, field name, thread name, or behavioral assertion)
+A **citation**: `<!-- source: ... -->` comment, `[High/Medium/Low]` tag, Searchfox URL, or spec section reference (`§`) on the same line.
 
-A **citation** is one of:
-- An inline `<!-- source: ... -->` comment on the same line
-- A `[High]`, `[Medium]`, or `[Low]` confidence tag on the same line
-- A Searchfox URL on the same line
-- A spec section reference (e.g. `§`) on the same line
-
-Flag lines with concrete claims but no citation as:
+Flag uncited fact lines as:
 > `components/Foo.md:42` — uncited claim: "<line text>"
 
-Limit output to the first 20 uncited lines per file to avoid noise. This check is advisory — do not fail the lint, just report.
+Limit to first 20 uncited lines per file. Advisory only — do not fail lint.
 
-### 10. Symbol existence check
+### Check 9: Symbol existence check (components/ only)
 
-For each component page under `components/`, extract the primary class name (the page title, e.g. `AudioSink` from `# AudioSink`).
+For each due component page, extract the primary class name from the page title (`# ClassName`).
 
-Run:
 ```bash
 searchfox-cli --define '<ClassName>' --cpp -l 1
 ```
 
-If the class definition is not found:
-> `components/<Name>.md` — class `<Name>` not found in current tree via searchfox-cli. Page may describe a removed or renamed component.
+If not found:
+> `components/<Name>.md` — class `<Name>` not found in current tree. Page may describe a removed or renamed component.
 
-This catches pages left over from temporary patches or renamed classes.
+### Check 10: Pattern synthesis candidates
 
-### 11. Pattern synthesis candidates
+Read all bug pages. Group by component pairs mentioned. If 3+ bugs share the same component pair and no pattern page exists, suggest:
+> Consider creating a pattern page for `<A>`-`<B>` interactions (appears in bugs X, Y, Z)
 
-Read all bug learning pages. Group them by component pairs mentioned. If 3 or more bugs share the same component pair and no pattern page exists for that pair, suggest:
+---
 
-> Consider creating a pattern page for \<A\>-\<B\> interactions (appears in bugs X, Y, Z)
+## After checks: update lint metadata
 
-### 9. Summary report
+For each page that was checked (due and not skipped):
 
-Print:
+1. If all checks passed (or only advisory issues): update metadata comments in the page:
+   ```
+   <!-- lint-last: <TODAY> -->
+   <!-- lint-source-rev: <CURRENT_REV> -->   ← components/relations only
+   ```
+
+2. Commit the metadata updates:
+   ```bash
+   cd $WIKI_PATH && git add -A && git commit -m "wiki: lint metadata update $(date +%Y-%m-%d)"
+   ```
+
+---
+
+## Summary report
 
 ```
-## Wiki Lint Report — <date>
+## Wiki Lint Report — <date> (<--full|--force>)
+
+Pages checked:              <n> of <total> (remainder not yet due)
 
 Broken links:               <n> issues
 Missing from index:         <n> pages
 Orphaned index entries:     <n>
-Potentially stale (code):   <n> pages  (>180 days)
-Stale specs:                <n> pages  (spec updated upstream)
 Missing required sections:  <n>
 Oversized pages:            <n>
-Dead Searchfox links:       <n> (file missing or symbol not found in current tree)
+Stale specs:                <n> (spec updated upstream)
+Dead Searchfox links:       <n> (file/symbol missing in current tree)
 Uncited claims:             <n> lines  (advisory)
-Missing class definitions:  <n> components (class not found via searchfox-cli)
+Missing class definitions:  <n> components
 Pattern synthesis:          <n> candidates
+
+Next due:
+  components/  — <date of next component page due>
+  specs/       — <date of next spec page due>
 
 <details for each category>
 ```
