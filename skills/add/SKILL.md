@@ -21,11 +21,27 @@ Classify the input:
 
 ---
 
-## Content policy — distillation only
+## Content policy
 
-**Never copy spec text verbatim into the wiki.** Always distill: extract the intent, rules, and facts and rewrite them in your own words.
+### Sensitivity — never include
 
-This applies to all sources but is especially critical for:
+- PoC / testcase code that triggers a crash or exploit
+- Precise race timing sequences or heap layout details that aid exploitation
+- Crash addresses or stack frames with symbol offsets
+- Bug numbers of security bugs that are still restricted on Bugzilla
+
+### Security bug rule
+
+When the source is a security bug (`sec-*` keyword or still restricted):
+
+1. Do **not** create a `bugs/<id>.md` page for it
+2. Do **not** include the bug number in page content
+3. Extract only the **component-level pattern** or **interaction edge case** and write it to the relevant `components/` or `relations/` page under **Known Quirks** or **Edge Cases**
+4. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
+
+### Distillation — never copy verbatim
+
+Always distill: extract the intent, rules, and facts and rewrite in your own words.
 
 | Spec type | Examples | Reason |
 |---|---|---|

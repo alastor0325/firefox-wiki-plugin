@@ -5,6 +5,27 @@ version: 0.1.0
 user-invocable: false
 ---
 
+## Content policy — sensitivity rules
+
+Apply these rules before writing anything to the wiki:
+
+**Never include:**
+- PoC / testcase code that triggers a crash or exploit
+- Precise race timing sequences or heap layout details that aid exploitation
+- Crash addresses or stack frames with symbol offsets
+- Bug numbers of security bugs that are still restricted on Bugzilla
+
+**Security bug rule** — when the bug has a `sec-*` keyword or is still restricted:
+
+1. Do **not** create a `bugs/<id>.md` page for it
+2. Do **not** include the bug number in any page content
+3. Extract only the **component-level pattern** or **interaction edge case** and write it to the relevant `components/` or `relations/` page under **Known Quirks** or **Edge Cases**
+4. Cite as `<!-- source: sec bug, <YYYY-MM-DD> -->` with no bug number
+
+For non-security bugs, the full `bugs/<id>.md` page and explicit bug number citations are appropriate.
+
+---
+
 When this skill is invoked, follow the protocol below exactly. First, detect the operating mode:
 
 - If `$ARGUMENTS` contains `--auto`: run in **auto mode** (non-interactive, never prompts, make best-effort decisions at every step).
@@ -87,7 +108,7 @@ For each item marked as "create" or "update", write or modify the file as descri
 
 **Bug learning page** (`bugs/{id}-{slug}.md`):
 
-- Always create one per bug — never skip this file.
+- Create one per bug — **except** for security bugs (see Content policy above). For sec bugs, write only to component/relation pages.
 - Sections: One-Line Summary, Root Causes (numbered list, each with its lesson), Regression Source (if known), Components Involved (all as `[[links]]`), Patches (hash + one-line description).
 
 **Pattern page** (`patterns/<name>.md`):
