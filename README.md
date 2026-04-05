@@ -100,15 +100,16 @@ brew install jq pandoc && cargo install bmo-to-md
 
 ## Accuracy
 
-Every fact in the wiki must cite a verifiable source — a Searchfox URL, spec section, or bug number. Facts from memory or inference are not permitted.
+The wiki is only useful if its facts are correct. Three layers work together to ensure this:
 
-Accuracy is maintained through three layers:
+**Write-time — prevent bad data from entering.**
+Every fact must cite a verifiable source: a Searchfox permanent URL, a spec section (e.g. "ITU-T H.265 §7.4.8"), or a Bugzilla bug number. Claude will not write a fact it cannot point to. Facts from memory or inference are rejected.
 
-| Layer | What it checks | When |
-|---|---|---|
-| Write-time | Source citation present and valid | Every write |
-| Lint | Broken links, dead Searchfox URLs, spec changes. Per-page intervals: components 14d, specs 180d | After every write; full scan on schedule |
-| Verify | Re-reads primary sources and flags stale or unverifiable facts | User-triggered; nudged by `ingest`/`add` when pages are overdue |
+**Lint — catch drift automatically.**
+After every wiki write, a hook checks the modified pages for broken links, dead Searchfox URLs, and structural issues. A full scan runs on a schedule (components every 14 days, specs every 180 days) to catch pages that have gone stale since they were written.
+
+**Verify — confirm against ground truth.**
+For pages that are overdue, `ingest` and `add` will nudge you to run `/firefox-wiki:verify`. This re-reads the original primary sources — Firefox source code, spec URLs, vendor docs — and flags any facts that no longer match. Critically, verify is forbidden from reading the wiki itself, so it cannot mistake a stale wiki page for ground truth.
 
 ---
 
