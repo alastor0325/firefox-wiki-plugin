@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Periodically verify that facts in the Firefox Knowledge Wiki are still correct by re-reading cited sources. Flags stale or unverifiable claims for human review.
-version: 0.1.0
+version: 0.2.0
 user-invocable: false
 ---
 
@@ -137,7 +137,38 @@ Collect all agent responses.
 
 ---
 
-## Step 4 — Build verification report
+## Step 4 — Auto-update stale facts
+
+For each STALE verdict, automatically correct the wiki page — do not ask for confirmation.
+
+### How to update
+
+1. Read the current wiki page.
+2. Locate the stale line (by line number and text match).
+3. Replace or remove it based on the agent's finding:
+   - **Replaced by new behavior**: rewrite the line with the correct claim, citing the source the agent used to verify (Searchfox URL, spec section, etc.). Preserve the confidence tag format: `[High/Medium/Low] <!-- source: ... -->`.
+   - **No longer exists** (class/method removed): remove the line entirely.
+   - **Renamed**: update the name in the claim and cite the new location.
+4. Write the updated file.
+
+### Uncertain facts
+
+For UNCERTAIN verdicts: do **not** change the claim text. Instead, append `<!-- verify-uncertain: <TODAY> — <brief reason> -->` to the end of the line. This flags it for manual review without removing potentially correct content.
+
+### Do not touch
+
+- Lines marked `<!-- verify-ignore -->` — skip entirely.
+- CONFIRMED facts — no changes needed.
+- Lines in `bugs/` — historical record, never modify.
+
+After all updates are applied, stage the modified wiki pages:
+```bash
+cd $WIKI_PATH && git add -A
+```
+
+---
+
+## Step 5 — Build verification report
 
 Create or overwrite `$WIKI_PATH/verify-report.md`:
 
@@ -184,14 +215,14 @@ Facts checked: <n>
 <n> facts verified correct.
 ```
 
-Save the report, then invoke `auto-update-my-md` to commit it:
+Save the report:
 ```bash
 cd $WIKI_PATH && git add verify-report.md
 ```
 
 ---
 
-## Step 5 — Update lint-log.json
+## Step 6 — Update lint-log.json
 
 For every page that was verified (regardless of verdict), update `verify-last` in `lint-log.json`:
 
@@ -203,16 +234,16 @@ jq --arg page "components/AudioSink.md" \
    && mv /tmp/lint-log-new.json $WIKI_PATH/lint-log.json
 ```
 
-Commit both `lint-log.json` and `verify-report.md` together:
+Commit all changes (updated wiki pages + lint-log.json + verify-report.md) together:
 ```bash
-cd $WIKI_PATH && git add lint-log.json verify-report.md \
-  && git commit -m "wiki: verify run $(date +%Y-%m-%d) — <n> stale, <n> uncertain" \
+cd $WIKI_PATH && git add -A \
+  && git commit -m "wiki: verify run $(date +%Y-%m-%d) — <n> stale auto-fixed, <n> uncertain flagged" \
   && git push
 ```
 
 ---
 
-## Step 6 — Present findings
+## Step 7 — Present findings
 
 Print a summary to the user:
 
@@ -222,13 +253,10 @@ Wiki Verification — <date>
 Pages verified:  <n>
 Facts checked:   <n>
   Confirmed:     <n>
-  Stale:         <n>  ← need correction
-  Uncertain:     <n>  ← need manual review
+  Auto-fixed:    <n>  ← stale facts corrected in place
+  Uncertain:     <n>  ← flagged with <!-- verify-uncertain --> for manual review
 
 Report saved to: ~/firefox-wiki/verify-report.md
-
-To fix stale facts:
-  /firefox-wiki:wiki-add <corrected fact with source>
 
 To suppress a false positive, add <!-- verify-ignore --> to the fact line.
 ```
