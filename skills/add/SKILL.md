@@ -1,5 +1,7 @@
 ---
+name: add
 description: Add a fact, explanation, or note to the Firefox Knowledge Wiki in natural language. Claude decides which page to update or create.
+version: 0.1.0
 ---
 
 ## Steps
@@ -146,12 +148,20 @@ Append a single line to `$WIKI_PATH/usage-log.jsonl`:
 
 After writing, scan the modified file for all `[[PageName]]` references. For each one, check whether a file named `<PageName>.md` exists anywhere under `$WIKI_PATH`. Report any broken links to the user.
 
-### 11. Confirm to the user
+### 11. Push to remote
+
+Run:
+
+```bash
+cd $WIKI_PATH && git add -A && git commit -m "wiki: add <one-line summary of what was added>" && git push
+```
+
+### 12. Confirm to the user
 
 Print a confirmation in this format:
 
 ```
-Added to `<relative file path>` with [<confidence>] tag. [[links]] verified.
+Added to `<relative file path>` with [<confidence>] tag. [[links]] verified. Pushed to remote.
 ```
 
 If any broken links were found, list them after the confirmation line.

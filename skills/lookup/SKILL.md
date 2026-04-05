@@ -1,5 +1,8 @@
 ---
+name: lookup
 description: Look up prior knowledge in the Firefox Knowledge Wiki before starting an investigation or triage. Returns synthesized context with citations.
+version: 0.1.0
+user-invocable: false
 ---
 
 ## When to invoke

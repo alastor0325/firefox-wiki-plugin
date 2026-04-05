@@ -1,5 +1,8 @@
 ---
+name: ingest
 description: Extract and store knowledge from a Firefox bug investigation into the wiki. Run after landing a patch. Supports --auto flag for non-interactive hook-triggered operation.
+version: 0.1.0
+user-invocable: false
 ---
 
 When this skill is invoked, follow the protocol below exactly. First, detect the operating mode:
@@ -152,6 +155,18 @@ In auto mode: append a warning entry to `log.md` listing each broken link, then 
 
 ---
 
+## Step 7 — PUSH
+
+Run:
+
+```bash
+cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest bug {id} — {one-line summary}" && git push
+```
+
+In auto mode: run silently, do not print git output unless it fails.
+
+---
+
 ## Final Output (interactive mode only)
 
 After all steps are complete, print:
@@ -165,4 +180,5 @@ Skipped (already known): {list}
 Broken links: {list or "none"}
 
 Key insight logged: {one sentence}
+Pushed to remote.
 ```

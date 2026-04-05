@@ -1,5 +1,7 @@
 ---
+name: stats
 description: Show Firefox Knowledge Wiki usage metrics — hit rate, most-consulted pages, false confidence rate, and coverage gaps. Run monthly.
+version: 0.1.0
 ---
 
 ## When to invoke

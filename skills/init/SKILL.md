@@ -1,5 +1,7 @@
 ---
+name: init
 description: Initialize the Firefox Knowledge Wiki directory structure. Run once after cloning the wiki content repo.
+version: 0.1.0
 ---
 
 ## Steps

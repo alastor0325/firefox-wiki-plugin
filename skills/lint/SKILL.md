@@ -1,5 +1,7 @@
 ---
+name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full for monthly health checks.
+version: 0.1.0
 ---
 
 ## When to invoke
