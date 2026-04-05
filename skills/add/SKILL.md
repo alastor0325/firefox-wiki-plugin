@@ -30,105 +30,112 @@ which pandoc || echo "NOT FOUND"
 which curl || echo "NOT FOUND"
 ```
 
-If either is missing, tell the user which tool is absent and offer to install it:
+If either is missing, offer to install it:
 
 ```
 <tool> is required for URL ingestion. Would you like me to install it now?
 
   brew install <tool>
 
-Reply "yes" to install, or install manually and re-run the command.
+Reply "yes" to install, or "no" to abort.
 ```
 
-Wait for the user's reply. If yes, run the install command and continue. If no, stop.
+Wait for reply. If yes, run the install and verify it succeeds before continuing. If no, stop.
 
-### S2 — Fetch and convert
+### S2 — Classify the URL
+
+Determine target directory and ingest strategy based on the domain:
+
+| Domain pattern | Directory | Strategy |
+|---|---|---|
+| whatwg.org, w3.org, ietf.org, iso.org, itu.int, khronos.org | `specs/` | **Section-based**: one wiki page per major section |
+| microsoft.com, docs.microsoft.com, learn.microsoft.com, developer.apple.com | `platform/` | **Single page**: one wiki page for the whole resource |
+| Everything else (MDN, blogs, postmortems, wikis, etc.) | `others/` | **Single page**: one wiki page for the whole resource |
+
+### S3 — Fetch and convert
 
 ```bash
-SPEC_URL="<the URL from $ARGUMENTS>"
-SPEC_MD="/tmp/wiki-spec-ingest.md"
+SRC_URL="<the URL from $ARGUMENTS>"
+SRC_MD="/tmp/wiki-url-ingest.md"
 
-# Capture response headers for staleness tracking
-curl -sI "$SPEC_URL" > /tmp/wiki-spec-headers.txt
-
-# Fetch and convert to markdown in one pipeline
-curl -sL --max-time 120 "$SPEC_URL" \
+curl -sI "$SRC_URL" > /tmp/wiki-url-headers.txt
+curl -sL --max-time 120 "$SRC_URL" \
   | pandoc -f html -t markdown --strip-comments --wrap=none \
-  > "$SPEC_MD"
-```
+  > "$SRC_MD"
 
-Extract staleness metadata from the headers:
-```bash
-ETAG=$(grep -i "^etag:" /tmp/wiki-spec-headers.txt | tr -d '\r' | awk '{print $2}')
-LAST_MOD=$(grep -i "^last-modified:" /tmp/wiki-spec-headers.txt | tr -d '\r' | cut -d' ' -f2-)
+ETAG=$(grep -i "^etag:" /tmp/wiki-url-headers.txt | tr -d '\r' | awk '{print $2}')
+LAST_MOD=$(grep -i "^last-modified:" /tmp/wiki-url-headers.txt | tr -d '\r' | cut -d' ' -f2-)
 FETCH_DATE=$(date +%Y-%m-%d)
 ```
 
-### S3 — Map sections
+### S4a — Section-based ingest (specs only)
 
-Scan headings to understand structure:
+Scan headings:
 ```bash
-grep "^#" "$SPEC_MD" | head -60
+grep "^#" "$SRC_MD" | head -60
 ```
 
-Identify the **major sections** (top-level `#` or `##` headings that represent distinct concepts). Ignore navigation boilerplate: table of contents, site headers/footers, breadcrumbs, "see also" sidebars, cookie banners, and repeated navigation links.
-
-Use judgment about what counts as a section worth storing — a section should represent a self-contained concept, not a one-line stub or pure navigation entry.
-
-### S4 — Create pages
-
-Determine `WIKI_PATH` (use `$WIKI_PATH` env var, otherwise `~/firefox-wiki/`).
-
-Determine the target directory based on the source:
-- Formal spec (w3.org, whatwg.org, ietf.org, iso.org, itu.int) → `specs/`
-- Reference docs, MDN, blog posts, postmortems, internal wikis → `platform/`
-- When in doubt, use `specs/`
+Identify major sections — `##` level headings that each represent a self-contained concept. Ignore navigation boilerplate (TOC, breadcrumbs, site headers/footers, cookie banners).
 
 For each major section:
 
-1. **Extract the section content** from the markdown file — from its heading to the next same-level heading.
-
-2. **Distill it**: do not copy the source verbatim. Write a structured summary covering:
-   - What this section defines or explains
-   - Key rules, states, or algorithm steps relevant to a Firefox implementer
-   - Any normative requirements or behavioral constraints
-
-   Omit: cross-reference links (`§4.8.x`), navigation content, cookie/legal banners, content that doesn't add implementation value.
-
-3. **Create or update** `$WIKI_PATH/<target-dir>/<slug>.md` using this template:
+1. Extract content from its heading to the next same-level heading.
+2. Distill into a structured summary — do not copy verbatim. Cover:
+   - What this section defines
+   - Key normative rules, states, algorithm steps
+   - Omit: `§x.y` cross-references, implementor notes irrelevant to Firefox, pure navigation
+3. Create or update `$WIKI_PATH/specs/<slug>.md`:
 
 ```markdown
 # <Section title>
 
-<!-- source-url: <URL> -->
+<!-- source-url: <SRC_URL>#<anchor> -->
 <!-- source-fetched: <FETCH_DATE> -->
 <!-- source-etag: <ETAG> -->
 <!-- source-last-modified: <LAST_MOD> -->
 
 ## Summary
 
-<1-3 sentence overview>
-
 ## Key Rules
-
-<numbered list of important rules or behaviors>
 
 ## States / Attributes
 
-<table if the section defines states, attributes, or error codes — omit section if not applicable>
-
 ## Firefox-Specific Notes
-
-<leave empty — filled in as implementation experience accumulates>
 ```
 
-4. If a page for this section **already exists**: update the content sections but preserve any existing `## Firefox-Specific Notes`. Update the `source-fetched` and `source-etag` metadata comments.
+If the page already exists: update content sections, preserve `## Firefox-Specific Notes`, refresh the metadata comments.
+
+### S4b — Single-page ingest (platform/ and others/)
+
+Distill the entire converted markdown into one wiki page. Cover:
+- What this resource is and why it matters
+- Key facts, behaviors, or constraints relevant to Firefox engineers
+- Omit navigation, legal boilerplate, marketing content
+
+Create or update `$WIKI_PATH/<platform|others>/<slug>.md`:
+
+```markdown
+# <Resource title>
+
+<!-- source-url: <SRC_URL> -->
+<!-- source-fetched: <FETCH_DATE> -->
+<!-- source-etag: <ETAG> -->
+<!-- source-last-modified: <LAST_MOD> -->
+
+## Summary
+
+## Key Points
+
+## Firefox-Specific Notes
+```
+
+If the page already exists: update content, preserve `## Firefox-Specific Notes`, refresh metadata.
 
 ### S5 — Update INDEX.md
 
-Add a row for each new spec page created to the `## Specs & Platform` table in INDEX.md:
+Add a row for each new page to the `## Specs & Platform` table:
 ```
-| [[<slug>]] | <one-line description of what it covers> |
+| [[<slug>]] | <one-line description> |
 ```
 
 Update the "Last updated" date.
@@ -137,25 +144,23 @@ Update the "Last updated" date.
 
 Append to `usage-log.jsonl`:
 ```json
-{"date":"<ISO timestamp>","event_type":"spec-ingest","trigger":"user","url":"<SPEC_URL>","pages_created":[...],"pages_updated":[...]}
+{"date":"<ISO timestamp>","event_type":"url-ingest","trigger":"user","url":"<SRC_URL>","directory":"<specs|platform|others>","pages_created":[...],"pages_updated":[...]}
 ```
 
-Run:
 ```bash
-cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest spec <domain/path>" && git push
+cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest <domain/path>" && git push
 ```
 
 ### S7 — Confirm
 
-Print:
 ```
-Spec ingested: <URL>
+Ingested: <URL>  →  <specs|platform|others>/
 
-Created: <list of new pages>
-Updated: <list of updated pages>
+Created: <list>
+Updated: <list>
 
-Re-run `/firefox-wiki:add <URL>` to refresh when the spec updates.
-Staleness will be flagged automatically by `/firefox-wiki:lint --full`.
+Re-run `/firefox-wiki:add <URL>` to refresh.
+Staleness flagged automatically by `/firefox-wiki:lint --full`.
 ```
 
 ---

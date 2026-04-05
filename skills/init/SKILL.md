@@ -100,6 +100,7 @@ Run `mkdir -p` for each of the following (it is safe to run even if they already
 
 - `$WIKI_PATH/specs/`
 - `$WIKI_PATH/platform/`
+- `$WIKI_PATH/others/`
 - `$WIKI_PATH/components/`
 - `$WIKI_PATH/relations/`
 - `$WIKI_PATH/patterns/`
@@ -170,7 +171,7 @@ See [[log.md]] for full history.
 ```
 Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
 
-Directories: ✓ specs/ ✓ platform/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
+Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
 
 Next steps:
