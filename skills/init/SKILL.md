@@ -86,7 +86,7 @@ Wait for the user's reply:
 
 ### 5. Check hook script
 
-Check whether `${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh` exists.
+Check whether `${CLAUDE_PLUGIN_ROOT}scripts/log-wiki-read.sh` exists.
 
 If **not found**, mark `[✗]` and warn (non-blocking — continue):
 
