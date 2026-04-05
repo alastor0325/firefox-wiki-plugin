@@ -191,6 +191,46 @@ In auto mode: run silently, do not print git output unless it fails.
 
 ---
 
+## Step 8 — VERIFY NUDGE
+
+After pushing, check `lint-log.json` for pages overdue for correctness verification.
+
+Verify intervals by directory:
+- `components/`: 30 days
+- `relations/`: 90 days
+- `patterns/`: 180 days
+- `specs/`: 365 days
+- `bugs/`: never
+
+```bash
+TODAY=$(date +%Y-%m-%d)
+cat $WIKI_PATH/lint-log.json 2>/dev/null | jq -r '
+  to_entries[] |
+  select(.value["verify-last"] == null or
+    (now - (.value["verify-last"] | strptime("%Y-%m-%d") | mktime)) > (
+      if (.key | startswith("components/")) then 30
+      elif (.key | startswith("relations/")) then 90
+      elif (.key | startswith("patterns/")) then 180
+      elif (.key | startswith("specs/")) then 365
+      else 99999 end * 86400
+    )
+  ) | .key'
+```
+
+If any pages are returned, print (in both auto and interactive mode):
+
+```
+Note: <n> page(s) are overdue for correctness verification:
+  components/: <n>  (interval: 30 days)
+  relations/:  <n>  (interval: 90 days)
+  ...
+Run /firefox-wiki:wiki-verify to check them.
+```
+
+If nothing is overdue: print nothing.
+
+---
+
 ## Final Output (interactive mode only)
 
 After all steps are complete, print:

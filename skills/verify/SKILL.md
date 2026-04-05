@@ -11,21 +11,21 @@ The verify skill is the correctness layer on top of lint. Where lint checks stru
 
 It is slow and judgment-heavy — run it quarterly, not after every write.
 
-## Verify interval
+## Verify intervals
 
-All content types use a **90-day** verify interval, stored as `verify-last` in `$WIKI_PATH/lint-log.json`.
+Per-page intervals stored as `verify-last` in `$WIKI_PATH/lint-log.json`.
 
-| Directory | Verify interval |
-|---|---|
-| `components/` | 90 days |
-| `relations/` | 90 days |
-| `patterns/` | 90 days |
-| `specs/` | 180 days |
-| `bugs/` | Never — historical record |
+| Directory | Verify interval | Rationale |
+|---|---|---|
+| `components/` | 30 days | Code changes most actively |
+| `relations/` | 90 days | Changes when components change |
+| `patterns/` | 180 days | Abstract concepts, stable |
+| `specs/` | 365 days | Specs rarely change behavior |
+| `bugs/` | Never | Historical record |
 
 ## When to invoke
 
-- Quarterly, manually: `/firefox-wiki:wiki-verify`
+- When nudged by `ingest` or `add` (pages overdue)
 - After a large refactor that touched many components
 - After suspecting agent-written facts may be wrong
 

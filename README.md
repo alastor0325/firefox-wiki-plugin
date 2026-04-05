@@ -108,7 +108,7 @@ Wiki accuracy is maintained through three layers:
 |---|---|---|
 | **Write-time** | All facts must cite a verifiable source (Searchfox URL, spec §section, bug number, or official vendor doc). Enforced via `~/.claude/CLAUDE.md` and agent instructions. | Every write |
 | **Lint** | Checks structure, broken links, dead Searchfox URLs, missing class definitions, spec ETag changes. Per-page intervals: components 14 days, specs 180 days. State tracked in `lint-log.json`. | Automatic after writes; `--full` on schedule |
-| **Verify** | Re-reads cited sources from primary sources only (Firefox source code, spec URLs, vendor docs). Forbidden from reading the wiki itself to avoid circular verification. Flags stale or unverifiable facts for correction. | Quarterly |
+| **Verify** | Re-reads cited sources from primary sources only (Firefox source code, spec URLs, vendor docs). Forbidden from reading the wiki itself to avoid circular verification. Flags stale or unverifiable facts for correction. Never auto-runs — `ingest` and `add` nudge the user when pages are overdue. | User-triggered; nudged by ingest/add |
 
 ---
 

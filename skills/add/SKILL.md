@@ -213,7 +213,16 @@ Source: <SRC_URL>
 cd $WIKI_PATH && git add -A && git commit -m "wiki: ingest <domain/path>" && git push
 ```
 
-### S7 — Confirm
+### S7 — Verify nudge
+
+After pushing, check `lint-log.json` for pages overdue for correctness verification using the same logic as the `ingest` skill (Step 8). If any pages are overdue, print:
+
+```
+Note: <n> page(s) are overdue for correctness verification.
+Run /firefox-wiki:wiki-verify to check them.
+```
+
+### S8 — Confirm
 
 ```
 Ingested: <URL>  →  <specs|platform|others>/
@@ -222,7 +231,6 @@ Created: <list>
 Updated: <list>
 
 Re-run `/firefox-wiki:add <URL>` to refresh.
-Staleness flagged automatically by `/firefox-wiki:lint --full`.
 ```
 
 ---
@@ -288,6 +296,8 @@ md5 "<path>"   # macOS
 ### P5 — Update INDEX.md, log, and push
 
 Same as URL ingest steps S5 and S6 (including the `log.md` entry). Commit message: `wiki: ingest <filename>`.
+
+Then run the verify nudge (same as S7).
 
 ---
 
@@ -419,7 +429,11 @@ Scan modified files for `[[PageName]]` references. Report any broken links.
 cd $WIKI_PATH && git add -A && git commit -m "wiki: add <one-line summary>" && git push
 ```
 
-### 11. Confirm
+### 11. Verify nudge
+
+Run the verify nudge (same as S7).
+
+### 12. Confirm
 
 ```
 Added to `<relative file path>` with [<confidence>] tag. [[links]] verified. Pushed to remote.
