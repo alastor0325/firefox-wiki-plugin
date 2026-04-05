@@ -295,7 +295,13 @@ md5 "<path>"   # macOS
 
 ### P5 — Update INDEX.md, log, and push
 
-Same as URL ingest steps S5 and S6 (including the `log.md` entry). Commit message: `wiki: ingest <filename>`.
+Same as URL ingest step S5 (update INDEX.md). For the log entry, write `pdf-ingest` instead of `url-ingest`:
+
+```json
+{"date":"<ISO timestamp>","event_type":"pdf-ingest","user":"<git -C $WIKI_PATH config user.email>","trigger":"user","file":"<$HOME-relative path>","directory":"<specs|platform|others>","pages_created":[...],"pages_updated":[...]}
+```
+
+Commit message: `wiki: ingest <filename>`.
 
 Then run the verify nudge (same as S7).
 
