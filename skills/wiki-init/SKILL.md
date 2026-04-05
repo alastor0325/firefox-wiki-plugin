@@ -42,38 +42,12 @@ Never overwrite a file that is already present. Check for existence before writi
 Append-only. One entry per ingest or significant update.
 ```
 
-**`$WIKI_PATH/glossary.md`** — create with this content:
+**`$WIKI_PATH/glossary.md`** — create only if it does not already exist (the cloned wiki repo will already have a populated glossary.md — never overwrite it). If creating from scratch, use this minimal stub:
 
 ```markdown
 # Glossary
 
-## Abbreviations
-- **MFR**: MediaFormatReader
-- **MDSM**: MediaDecoderStateMachine (also MDSM)
-- **TBM**: TrackBuffersManager
-- **MSE**: Media Source Extensions
-- **EME**: Encrypted Media Extensions
-- **CDM**: Content Decryption Module
-- **WMF**: Windows Media Foundation
-- **MFCDM**: Media Foundation CDM (Firefox's WMF CDM integration)
-- **GMP**: Gecko Media Plugin
-- **MSG**: MediaStreamGraph
-
-## Common HRESULT Codes
-| Code | Name | Meaning |
-|---|---|---|
-| 0xC00D7176 | MF_E_INCOMPATIBLE_SAMPLE_PROTECTION | HDCP output protection not established |
-| 0x8004CD12 | DRM_E_TEE_INVALID_HWDRM_STATE | PlayReady TEE context invalidated (sleep/resume) |
-| 0xC00D36B4 | MF_E_INVALIDMEDIATYPE | Media type rejected by MFT |
-| 0xC00D3704 | MF_E_UNSUPPORTED_FORMAT | Format not supported by MFT |
-
-## nsresult Codes (media-specific)
-| Code | Meaning |
-|---|---|
-| NS_ERROR_DOM_MEDIA_FATAL_ERR | Unrecoverable media error |
-| NS_ERROR_DOM_MEDIA_NOT_SUPPORTED_ERR | Format/codec not supported |
-| NS_ERROR_DOM_MEDIA_WAITING_FOR_DATA | Demuxer has no data at requested time |
-| NS_ERROR_DOM_MEDIA_CANCELED | Operation canceled (decoder shutdown) |
+Use `/firefox-wiki:add` to populate this file with abbreviations, HRESULT codes, and nsresult codes as you encounter them.
 ```
 
 **`$WIKI_PATH/INDEX.md`** — create with this content, substituting today's date for `(today's date)`:
