@@ -24,8 +24,6 @@ The wiki lives in a separate git repo (`~/firefox-wiki/` by default, or `$WIKI_P
 |---|---|
 | `/firefox-wiki:init` | One-time setup: create wiki directory structure, verify dependencies |
 | `/firefox-wiki:add <input>` | Add knowledge — accepts a spec URL, `bug <id>`, or natural language fact |
-| `/firefox-wiki:lint` | Check wiki integrity. Use `--full` for interval-based accuracy checks |
-| `/firefox-wiki:verify` | Quarterly correctness check — re-reads cited sources to confirm facts are still true |
 | `/firefox-wiki:stats` | View usage metrics and lookup hit rate |
 
 ### `/firefox-wiki:add` input types
@@ -49,13 +47,15 @@ The wiki lives in a separate git repo (`~/firefox-wiki/` by default, or `$WIKI_P
 
 ## Agent-invoked skills (hidden from users)
 
-These run automatically via hooks and are not intended to be called directly.
+These run automatically and are not intended to be called directly by the user.
 
 | Skill | When it runs |
 |---|---|
 | `ingest` | After every `git commit` in a Firefox repo — extracts knowledge from the landed patch |
 | `lookup` | Before any bug investigation or triage session — surfaces relevant prior knowledge |
-| `verify` | Quarterly — re-reads cited sources via gecko-navigator to confirm facts are still correct. Forbidden from reading the wiki itself to avoid circular verification. |
+| `lint --lightweight` | After every wiki write (PostToolUse hook) — checks broken links in modified files |
+| `lint --full` | At end of `ingest` and `add` — interval-based accuracy checks across all due pages |
+| `verify` | Never auto-runs — nudged by `ingest` and `add` when pages are overdue; user explicitly triggers. Re-reads cited sources via gecko-navigator. Forbidden from reading the wiki itself to avoid circular verification. |
 
 ---
 
