@@ -230,8 +230,9 @@ Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
 Maintenance: <✓ active in AGENTS.md | ✓ active in ~/.claude/CLAUDE.md | – skipped>
 
-Next steps:
-- Add knowledge:        /firefox-wiki:add <statement or URL>
-- Before investigating:  wiki lookup runs automatically
-- Write-back:           facts discovered during sessions are written back automatically
+You're ready. Just start working on bugs — the plugin will build the wiki automatically.
+
+Optionally:
+- Seed with existing knowledge:  /firefox-wiki:add <spec URL, bug id, or fact>
+- Check usage after sessions:    /firefox-wiki:stats
 ```

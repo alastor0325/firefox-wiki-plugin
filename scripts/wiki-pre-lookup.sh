@@ -58,11 +58,10 @@ fi
 MATCHED_FILES=$(rg "$TERM" "$WIKI_PATH" --include="*.md" -l 2>/dev/null | head -3 || true)
 [[ -z "$MATCHED_FILES" ]] && exit 0
 
-echo "Wiki hit for '$TERM':"
+echo "[wiki] '$TERM' found in wiki — run /firefox-wiki:lookup '$TERM' before searching code."
 while IFS= read -r FILE; do
     REL="${FILE#$WIKI_PATH/}"
     SNIPPET=$(rg "$TERM" "$FILE" -m 1 --no-heading --no-line-number 2>/dev/null \
         | head -c 120 || true)
     echo "  $REL: $SNIPPET"
 done <<< "$MATCHED_FILES"
-echo "Consider /firefox-wiki:lookup '$TERM' before searching code."
