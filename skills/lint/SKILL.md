@@ -1,7 +1,7 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full for monthly health checks.
-version: 0.1.0
+version: 0.2.0
 ---
 
 ## When to invoke
@@ -111,7 +111,70 @@ For every file under `$WIKI_PATH/specs/`, `$WIKI_PATH/platform/`, and `$WIKI_PAT
 4. Report stale pages as:
    > `specs/<file>.md` — spec updated since last ingest (ETag changed). Re-run `/firefox-wiki:add <url>` to refresh.
 
-### 8. Pattern synthesis candidates
+### 8. Dead Searchfox links
+
+For every `searchfox.org/mozilla-central/rev/<hash>/...` URL found in any wiki page:
+
+1. Extract the file path and line number from the URL:
+   - URL format: `https://searchfox.org/mozilla-central/rev/<hash>/<path>#<line>`
+   - Extract `<path>` (e.g. `dom/media/AudioSink.cpp`)
+
+2. Check whether the file still exists in the current local Firefox tree:
+   ```bash
+   ls ~/firefox/<path> 2>/dev/null && echo "EXISTS" || echo "MISSING"
+   ```
+   If `~/firefox/` is not the right path, try to detect the Firefox repo root from `$MOZ_SRC` or common locations.
+
+3. If the file exists, verify the symbol or function mentioned in the surrounding sentence still exists in that file:
+   ```bash
+   searchfox-cli --id '<symbol>' --cpp -l 5
+   ```
+   Use the symbol name extracted from the sentence immediately surrounding the Searchfox URL.
+
+4. Verdict:
+   - **File missing**: flag as dead link — "file no longer exists at `<path>`"
+   - **Symbol missing**: flag as potentially stale — "symbol `<name>` not found in current tree; fact may be outdated"
+   - **OK**: mark as current
+
+Report all dead or potentially stale Searchfox links grouped by wiki page.
+
+### 9. Missing citations
+
+Scan all pages under `components/`, `relations/`, and `patterns/` for fact lines that lack a source citation.
+
+A **fact line** is any non-empty line that:
+- Is not a heading (`#`)
+- Is not a list marker alone (`-`, `*`)
+- Is not a table delimiter (`|---|`)
+- Is not inside a code block (` ``` `)
+- Contains a concrete claim (mentions a class name, method name, field name, thread name, or behavioral assertion)
+
+A **citation** is one of:
+- An inline `<!-- source: ... -->` comment on the same line
+- A `[High]`, `[Medium]`, or `[Low]` confidence tag on the same line
+- A Searchfox URL on the same line
+- A spec section reference (e.g. `§`) on the same line
+
+Flag lines with concrete claims but no citation as:
+> `components/Foo.md:42` — uncited claim: "<line text>"
+
+Limit output to the first 20 uncited lines per file to avoid noise. This check is advisory — do not fail the lint, just report.
+
+### 10. Symbol existence check
+
+For each component page under `components/`, extract the primary class name (the page title, e.g. `AudioSink` from `# AudioSink`).
+
+Run:
+```bash
+searchfox-cli --define '<ClassName>' --cpp -l 1
+```
+
+If the class definition is not found:
+> `components/<Name>.md` — class `<Name>` not found in current tree via searchfox-cli. Page may describe a removed or renamed component.
+
+This catches pages left over from temporary patches or renamed classes.
+
+### 11. Pattern synthesis candidates
 
 Read all bug learning pages. Group them by component pairs mentioned. If 3 or more bugs share the same component pair and no pattern page exists for that pair, suggest:
 
@@ -131,6 +194,9 @@ Potentially stale (code):   <n> pages  (>180 days)
 Stale specs:                <n> pages  (spec updated upstream)
 Missing required sections:  <n>
 Oversized pages:            <n>
+Dead Searchfox links:       <n> (file missing or symbol not found in current tree)
+Uncited claims:             <n> lines  (advisory)
+Missing class definitions:  <n> components (class not found via searchfox-cli)
 Pattern synthesis:          <n> candidates
 
 <details for each category>
