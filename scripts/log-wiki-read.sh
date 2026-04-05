@@ -12,8 +12,12 @@ if echo "$FILE" | grep -q "firefox-wiki/"; then
   if [ ! -f "$LOG" ]; then
     exit 0
   fi
+  WIKI_PATH_RESOLVED="${WIKI_PATH:-$HOME/firefox-wiki}"
+  REL_FILE="${FILE#$WIKI_PATH_RESOLVED/}"
+  USER_EMAIL=$(git -C "$WIKI_PATH_RESOLVED" config user.email 2>/dev/null || echo "unknown")
   jq -n \
     --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg file "$FILE" \
-    '{date: $date, event_type: "wiki_read", trigger: "hook", file: $file}' >> "$LOG"
+    --arg user "$USER_EMAIL" \
+    --arg file "$REL_FILE" \
+    '{date: $date, event_type: "wiki_read", user: $user, trigger: "hook", file: $file, query: null, bug_id: null}' >> "$LOG"
 fi
