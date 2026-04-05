@@ -31,7 +31,12 @@ Read `$WIKI_PATH/INDEX.md`. Scan the component, relation, and pattern tables for
 
 ### 4. Grep the wiki for key terms
 
-Extract key terms from the query:
+First, check whether the current conversation context contains a hook pre-lookup
+result — a message starting with `Wiki hit for '<term>':`. If found, extract the
+file paths listed there and skip the grep below; those paths are already the rg
+results and can be used directly in step 5.
+
+If no hook output is present, extract key terms from the query:
 - Component names (C++ class names, method names, field names)
 - Bug numbers (e.g. `1234567`)
 - Error codes or HRESULT values

@@ -1,5 +1,14 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [{
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/wiki-pre-lookup.sh"
+        }]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",

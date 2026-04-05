@@ -52,7 +52,7 @@ These run automatically and are not intended to be called directly by the user.
 | Skill | When it runs |
 |---|---|
 | `ingest` | After every `git commit` in a Firefox repo — extracts knowledge from the landed patch |
-| `lookup` | Before any bug investigation or triage session — surfaces relevant prior knowledge |
+| `lookup` | Before any bug investigation or triage session, and mid-investigation when the pre-lookup hook detects a wiki hit — surfaces relevant prior knowledge |
 | `lint --lightweight` | After every wiki write (PostToolUse hook) — checks broken links in modified files |
 | `lint --full` | At end of `ingest` and `add` — interval-based accuracy checks across all due pages |
 | `verify` | Never auto-runs — nudged by `ingest` and `add` when pages are overdue; user explicitly triggers. Re-reads cited sources via gecko-navigator. Forbidden from reading the wiki itself to avoid circular verification. |
@@ -61,13 +61,14 @@ These run automatically and are not intended to be called directly by the user.
 
 ## Hooks
 
-Three `PostToolUse` hooks run silently in the background:
+One `PreToolUse` hook and three `PostToolUse` hooks run silently in the background:
 
-| Hook | Trigger | Action |
-|---|---|---|
-| Auto-ingest | `Bash` tool runs `git commit` in a Firefox repo | Calls `/firefox-wiki:ingest --auto` |
-| Read logging | `Read` tool reads a file under `firefox-wiki/` | Appends a `wiki_read` event to `usage-log.jsonl` |
-| Lint | `Write` or `Edit` tool modifies a file under `firefox-wiki/` | Runs `/firefox-wiki:lint --lightweight` |
+| Hook | Type | Trigger | Action |
+|---|---|---|---|
+| Pre-lookup | `PreToolUse` | `Bash` runs `searchfox-cli`, or `Grep` searches under `dom/media` | Runs `rg` against the wiki for the search term; if hits found, prints file list + snippets and suggests `/firefox-wiki:lookup` |
+| Auto-ingest | `PostToolUse` | `Bash` tool runs `git commit` in a Firefox repo | Calls `/firefox-wiki:ingest --auto` |
+| Read logging | `PostToolUse` | `Read` tool reads a file under `firefox-wiki/` | Appends a `wiki_read` event to `usage-log.jsonl` |
+| Lint | `PostToolUse` | `Write` or `Edit` tool modifies a file under `firefox-wiki/` | Runs `/firefox-wiki:lint --lightweight` |
 
 ---
 
