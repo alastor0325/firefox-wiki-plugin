@@ -1,0 +1,14 @@
+{
+  "name": "firefox-wiki-plugin",
+  "owner": { "name": "Alastor Wu", "email": "alwu@mozilla.com" },
+  "metadata": {
+    "description": "Firefox Knowledge Wiki — persistent knowledge base for Firefox engineers"
+  },
+  "plugins": [
+    {
+      "name": "firefox-wiki",
+      "source": "./",
+      "description": "Ingest, lookup, lint, and monitor a shared Firefox knowledge wiki. Hooks run automatically on git commits and wiki reads."
+    }
+  ]
+}
