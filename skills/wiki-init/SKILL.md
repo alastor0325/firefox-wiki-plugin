@@ -4,6 +4,26 @@ description: Initialize the Firefox Knowledge Wiki directory structure. Run once
 
 ## Steps
 
+### 0. Check wiki content repo is cloned
+
+Before doing anything, check whether `$WIKI_PATH` (or `~/firefox-wiki/` if unset) already exists and contains `INDEX.md`.
+
+If `INDEX.md` is **not found**, stop and print:
+
+```
+Firefox Knowledge Wiki content not found at ~/firefox-wiki/.
+
+Please clone the wiki repo first:
+
+  git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
+
+Note: this is a private repo. If you don't have access, contact :alwu (alwu@mozilla.com) to request it.
+
+Once cloned, re-run /firefox-wiki:init.
+```
+
+Do not proceed further until the wiki repo is cloned.
+
 ### 1. Determine WIKI_PATH
 
 Use the `$WIKI_PATH` environment variable if set; otherwise default to `~/firefox-wiki/`.
@@ -103,7 +123,6 @@ Hooks: [active / NOT FOUND — re-install plugin]
 jq: [found / NOT FOUND — install with brew install jq]
 
 Next steps:
-- Clone or create wiki content: git clone ... ~/firefox-wiki
 - Add knowledge: /firefox-wiki:add <statement>
 - Before investigating a bug: wiki lookup runs automatically
 ```
