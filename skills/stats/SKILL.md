@@ -21,18 +21,20 @@ If the file is missing or empty, stop and say:
 ### 2. Parse the log
 
 Read the JSONL file — one JSON object per line. Group entries by `event_type`:
-- `wiki_read` — wiki consultation events (from lookup or add)
-- `ingest` — post-investigation knowledge additions
-- `add` — user-triggered fact additions
-- `lint` — lint runs
+- `wiki_read` — wiki consultation events (from lookup)
+- `ingest` — post-investigation bug knowledge additions
+- `url-ingest` / `pdf-ingest` — spec/platform ingests (from add or init)
+- `add` — user-triggered natural-language fact additions
 
 ### 3. Compute and display metrics
 
 #### Hit Rate
 
 The primary metric. Definition:
-- **Numerator**: sessions that contain at least one `wiki_read` event.
-- **Denominator**: total investigation sessions, estimated by counting `ingest` events (each completed investigation should produce one ingest).
+- **Denominator**: count of `ingest` events (one per completed bug investigation).
+- **Numerator**: count of `ingest` events where `hypothesis_from_wiki = true`, OR where a `wiki_read` event exists with the same `bug_id` in the log (whichever is broader — use the union).
+
+If a `wiki_read` event has `bug_id: null`, it cannot be correlated; count it only if its timestamp falls within 24 hours before an `ingest` event with no prior `wiki_read` match.
 
 Display as a monthly table:
 
