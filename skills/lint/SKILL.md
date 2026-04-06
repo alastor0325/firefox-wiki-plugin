@@ -67,6 +67,7 @@ This suppresses the pre-lookup and read-logging hooks so lint's own file reads d
 - `--lightweight`: runs automatically after every wiki write (triggered by the PostToolUse hook on Write/Edit). Checks only recently modified files for broken links.
 - `--full`: run all checks that are due based on per-page intervals. Pages not yet past their interval are skipped.
 - `--force`: like `--full` but ignores intervals — checks every page regardless of `lint-last`.
+- `<page-path>`: lint a single page only (e.g. `components/AudioSink.md`). Runs all checks unconditionally, skips interval logic, updates `lint-last` for that page only.
 
 ## Mode detection
 
@@ -74,7 +75,21 @@ Parse `$ARGUMENTS`:
 - Contains `--lightweight`: run lightweight mode.
 - Contains `--force`: run full mode with interval checking disabled.
 - Contains `--full`: run full mode with interval checking enabled.
+- Contains a page path (token ending in `.md`, not starting with `--`): run single-page mode on that file.
 - Empty: default to lightweight mode.
+
+---
+
+## Single-page mode
+
+Runs all full-mode checks on one specific file unconditionally — no interval check, no source-change skip. Useful for spot-checking a page you just edited.
+
+Steps:
+1. Resolve the file path relative to `$WIKI_PATH` if not absolute.
+2. Run checks 1, 4, 5, 7, 8, and 9 (as applicable to the file's directory) on that single file.
+3. Skip checks 2 (INDEX completeness), 3 (orphaned entries), and 10 (pattern synthesis) — those require a full-wiki scan.
+4. Update `lint-last` (and `lint-source-rev` for components/relations) for that page only.
+5. Print results in the same format as full mode, but scoped to the one file.
 
 ---
 
