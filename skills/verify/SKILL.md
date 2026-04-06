@@ -5,6 +5,14 @@ version: 0.3.0
 user-invocable: false
 ---
 
+## Setup
+
+At the start of every verify run, set the env var that suppresses wiki hooks in this session:
+```bash
+export WIKI_SKIP_HOOKS=1
+```
+This prevents the pre-lookup and read-logging hooks from firing on wiki file reads done during verification, which would pollute usage stats.
+
 ## Purpose
 
 The verify skill is the correctness layer on top of lint. Where lint checks structure and staleness signals, verify re-reads actual sources and asks: "does this code / spec still support this claim?"

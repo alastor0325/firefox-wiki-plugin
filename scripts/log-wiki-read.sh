@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Suppress hooks in background wiki maintenance agents to avoid noise
+[[ "${WIKI_SKIP_HOOKS:-}" == "1" ]] && exit 0
+
 INPUT=$(cat)
 FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
 

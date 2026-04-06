@@ -54,6 +54,14 @@ cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +
 | `others/` | 180 days | No |
 | `bugs/` | Never | Historical record — never re-lint |
 
+## Setup
+
+At the start of every lint run, set:
+```bash
+export WIKI_SKIP_HOOKS=1
+```
+This suppresses the pre-lookup and read-logging hooks so lint's own file reads don't pollute usage stats.
+
 ## When to invoke
 
 - `--lightweight`: runs automatically after every wiki write (triggered by the PostToolUse hook on Write/Edit). Checks only recently modified files for broken links.

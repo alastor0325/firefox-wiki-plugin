@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+# Suppress hooks in background wiki maintenance agents to avoid noise
+[[ "${WIKI_SKIP_HOOKS:-}" == "1" ]] && exit 0
+
 WIKI_PATH="${WIKI_PATH:-$HOME/firefox-wiki}"
 LOG="$WIKI_PATH/usage-log.jsonl"
 
