@@ -23,7 +23,8 @@ If the file is missing or empty, stop and say:
 Read the JSONL file — one JSON object per line. Skip any line that is not valid JSON (malformed entries — lint will repair them on next run). Group entries by `event_type`:
 
 For each metric below, if the required fields are absent on an event, skip that event and note the count of skipped entries at the end of the report. Never crash or omit a metric entirely because of missing fields — show `n/a (N events missing required fields)` instead.
-- `wiki_read` — wiki consultation events (from lookup)
+- `pre_lookup` — pre-hook intercept events (searchfox-cli or dom/media grep attempted)
+- `wiki_read` — wiki page reads (from lookup skill or hook)
 - `ingest` — post-investigation bug knowledge additions
 - `url-ingest` / `pdf-ingest` — spec/platform ingests (from add or init)
 - `add` — user-triggered natural-language fact additions
@@ -32,11 +33,12 @@ For each metric below, if the required fields are absent on an event, skip that 
 
 #### Hit Rate
 
-The primary metric. Definition:
-- **Denominator**: count of `ingest` events (one per completed bug investigation).
-- **Numerator**: count of `ingest` events where `hypothesis_from_wiki = true`, OR where a `wiki_read` event exists with the same `bug_id` in the log (whichever is broader — use the union).
+The primary metric. Measured from `pre_lookup` events — these are logged by the pre-hook every time Claude attempts a searchfox-cli or dom/media grep, capturing exactly when the wiki was consulted vs when code was searched directly.
 
-If a `wiki_read` event has `bug_id: null`, it cannot be correlated; count it only if its timestamp falls within 24 hours before an `ingest` event with no prior `wiki_read` match.
+- **Denominator**: count of `pre_lookup` events (each represents one code search attempt).
+- **Numerator**: count of `pre_lookup` events where `wiki_hit: true`.
+
+If no `pre_lookup` events exist yet (plugin freshly installed), fall back to the old method: denominator = `ingest` event count, numerator = `ingest` events where `hypothesis_from_wiki = true` or matching `wiki_read` by `bug_id`. Label this fallback clearly as "estimated (no pre_lookup data)".
 
 If the log contains events with a `user` field, compute hit rate per user and show both tables: one per-user, then a team aggregate row. Events without a `user` field are grouped under `(unknown)`.
 
