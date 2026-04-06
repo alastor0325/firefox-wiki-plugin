@@ -15,7 +15,7 @@ if echo "$FILE" | grep -q "firefox-wiki/"; then
   WIKI_PATH_RESOLVED="${WIKI_PATH:-$HOME/firefox-wiki}"
   REL_FILE="${FILE#$WIKI_PATH_RESOLVED/}"
   USER_EMAIL=$(git -C "$WIKI_PATH_RESOLVED" config user.email 2>/dev/null || echo "unknown")
-  jq -n \
+  jq -cn \
     --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg user "$USER_EMAIL" \
     --arg file "$REL_FILE" \

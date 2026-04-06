@@ -65,7 +65,7 @@ MATCHED_FILES=$(grep -rl "$TERM" "$WIKI_PATH" --include="*.md" 2>/dev/null | hea
 if [[ -z "$MATCHED_FILES" ]]; then
     # Miss: log for denominator tracking
     if [[ -f "$LOG" ]]; then
-        jq -n \
+        jq -cn \
             --arg date "$DATE" \
             --arg user "$USER_EMAIL" \
             --arg term "$TERM" \
@@ -78,7 +78,7 @@ fi
 # Hit: log and print context for Claude
 if [[ -f "$LOG" ]]; then
     MATCHED_JSON=$(echo "$MATCHED_FILES" | awk -v wp="$WIKI_PATH/" '{gsub(wp,"",$0); printf "\"%s\",", $0}' | sed 's/,$//')
-    jq -n \
+    jq -cn \
         --arg date "$DATE" \
         --arg user "$USER_EMAIL" \
         --arg term "$TERM" \
