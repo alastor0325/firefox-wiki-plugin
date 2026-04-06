@@ -27,6 +27,7 @@ Per-page intervals stored as `verify-last` in `$WIKI_PATH/lint-log.json`.
 |---|---|---|
 | `components/` | 30 days | Code changes most actively |
 | `relations/` | 90 days | Changes when components change |
+| `architecture/` | 90 days | End-to-end walkthroughs; class names change with refactors |
 | `patterns/` | 180 days | Abstract concepts, stable |
 | `specs/` | 365 days | Specs rarely change behavior |
 | `bugs/` | Never | Historical record |

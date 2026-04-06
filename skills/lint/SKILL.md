@@ -48,6 +48,7 @@ cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +
 |---|---|---|
 | `components/` | 14 days | Yes — skip if no Firefox commits since `lint-source-rev` |
 | `relations/` | 14 days | Yes — skip if no Firefox commits since `lint-source-rev` |
+| `architecture/` | 90 days | Yes — end-to-end pipeline walkthroughs reference specific class names |
 | `patterns/` | 90 days | No |
 | `specs/` | 180 days | No — use ETag/MD5 instead |
 | `platform/` | 180 days | No — use ETag/MD5 instead |
