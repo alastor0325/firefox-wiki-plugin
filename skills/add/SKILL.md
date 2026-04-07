@@ -333,6 +333,7 @@ Read `$WIKI_PATH/INDEX.md` to understand current wiki structure.
 | **Reusable pattern** | A mechanism that appears in multiple contexts | `patterns/<name>.md` |
 | **Spec/standard behavior** | Codec, container, or web spec behavior | `specs/<name>.md` or `platform/<name>.md` |
 | **Bug learning** | Distilled insight from a resolved bug | `bugs/<id>-<slug>.md` |
+| **Triage pattern** | How to recognize, route, or handle a class of bugs during triage | `triage/<slug>.md` |
 | **Glossary entry** | Abbreviation, error code, or enum value | `glossary.md` |
 
 ### 4. Determine confidence level
@@ -405,6 +406,19 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned.
 ## Fix Summary
 
 ## Learnings
+```
+
+**Triage pattern page** (`triage/<slug>.md`):
+```markdown
+# <Pattern name>
+
+## Symptom
+
+## What it usually is
+
+## What to ask / check first
+
+## Component / Meta bug
 ```
 
 ### 7. Update INDEX.md if a new page was created
