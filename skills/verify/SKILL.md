@@ -274,7 +274,40 @@ cd $WIKI_PATH && git add -A \
 
 ---
 
-## Step 7 — Present findings
+## Step 8 — Backfill hypothesis_correct in ingest events
+
+After committing, scan `usage-log.jsonl` for ingest events that reference any page verified in this run and still have `hypothesis_correct: null`.
+
+For each verified page in this run, collect:
+- `stale_fixed` — number of stale facts auto-corrected on that page
+
+Then read `usage-log.jsonl` line by line. For each line where:
+- `event_type == "ingest"`
+- `hypothesis_from_wiki == true`
+- `hypothesis_correct == null`
+- any entry in `pages_created` or `pages_updated` matches a page verified in this run
+
+Apply the verdict:
+- All matched pages had `stale_fixed == 0` → set `hypothesis_correct: true`
+- Any matched page had `stale_fixed > 0` → set `hypothesis_correct: false`
+- Mixed (some pages stale, some not) → set `hypothesis_correct: false` (conservative)
+
+Rewrite the matching lines in place (parse JSON, update field, re-serialize as single-line JSON). Write the updated file atomically.
+
+If any ingest events were updated, include them in the commit from Step 7:
+```bash
+cd $WIKI_PATH && git add usage-log.jsonl
+```
+If the commit from Step 7 already ran, make a separate commit:
+```bash
+cd $WIKI_PATH && git add usage-log.jsonl && git commit -m "wiki: backfill hypothesis_correct for $(date +%Y-%m-%d) verify run" && git push
+```
+
+---
+
+## Step 9 — Present findings
+
+
 
 Print a summary to the user:
 

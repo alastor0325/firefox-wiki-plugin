@@ -153,10 +153,12 @@ Append the following block to `log.md`:
 Append a single JSON object (one line) to `usage-log.jsonl`:
 
 ```json
-{"date": "<ISO timestamp>", "event_type": "ingest", "user": "<git -C $WIKI_PATH config user.email>", "trigger": "<hook|user>", "bug_id": <number>, "pages_created": ["bugs/...", "patterns/..."], "pages_updated": ["components/...", "relations/..."], "hypothesis_from_wiki": <true|false>, "hypothesis_text": "<if applicable>", "hypothesis_correct": null}
+{"date": "<ISO timestamp>", "event_type": "ingest", "user": "<git -C $WIKI_PATH config user.email>", "trigger": "<hook|user>", "bug_id": <number>, "pages_created": ["bugs/...", "patterns/..."], "pages_updated": ["components/...", "relations/..."], "hypothesis_from_wiki": <true|false>, "hypothesis_term": "<term if applicable>", "hypothesis_correct": null}
 ```
 
-To populate `hypothesis_from_wiki` and `hypothesis_text`: scan `usage-log.jsonl` for a prior `wiki_read` event whose `bug_id` matches this bug ID. If such an event is found, set `hypothesis_from_wiki: true` and copy the hypothesis text from that event. Otherwise set `hypothesis_from_wiki: false` and `hypothesis_text: ""`.
+To populate `hypothesis_from_wiki` and `hypothesis_term`: scan the last 8 hours of `pre_lookup` events in `usage-log.jsonl` for any entry where `wiki_hit: true`. Use the current timestamp minus 8 hours as the cutoff. If one or more such events are found, set `hypothesis_from_wiki: true` and set `hypothesis_term` to the `term` field of the first matching event. Otherwise set `hypothesis_from_wiki: false` and `hypothesis_term: ""`.
+
+`hypothesis_correct` is always written as `null` at ingest time — it will be backfilled automatically by the verify skill when it later verifies the pages listed in `pages_created` and `pages_updated`.
 
 ---
 

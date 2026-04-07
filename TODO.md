@@ -10,7 +10,9 @@ Items discovered during development and usage. Add new items here rather than fi
 
 - [ ] **False confidence rate is blind** — `hypothesis_from_wiki` and `hypothesis_correct` fields are never populated. No real bug investigations have been run through the wiki yet. Stats can report hit rate but cannot measure whether wiki hits actually help. Needs real investigation data before this metric is meaningful.
 
-- [ ] **`ingest` skill should prompt for hypothesis fields** — When `:ingest` is triggered by a real investigation (not `--auto`), prompt the engineer: "Did the wiki provide a starting hypothesis? Was it correct?" Then write `hypothesis_from_wiki` and `hypothesis_correct` into the ingest event. Skip this prompt in `--auto` mode.
+- [x] **`hypothesis_from_wiki` auto-detection** — Ingest skill now scans the last 8 hours of `pre_lookup` events for `wiki_hit: true` to set `hypothesis_from_wiki` automatically. No engineer action needed.
+
+- [x] **`hypothesis_correct` auto-backfill** — Verify skill now backfills `hypothesis_correct` in matching ingest events after each verify run: `stale_fixed == 0` → true, `stale_fixed > 0` → false. Data grows naturally without any manual review.
 
 - [ ] **`verify-report.md` appearing in most-consulted pages** — Verify agents read `verify-report.md` during maintenance, polluting the most-consulted list. Filter files outside `$WIKI_PATH` content directories (i.e. exclude `verify-report.md`, `lint-log.json`, `usage-log.jsonl`) from wiki_read consultation counts in stats.
 
