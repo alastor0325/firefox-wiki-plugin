@@ -25,7 +25,7 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
     COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
     echo "$COMMAND" | grep -q "searchfox-cli" || exit 0
 
-    # Extract query from: --define 'Foo', --id Foo, -q 'foo bar'
+    # Extract query from: --define 'Foo', --id Foo, -q 'foo bar' (quoted or unquoted)
     TERM=$(echo "$COMMAND" \
         | grep -oE "(--define|--id|-q)\s+'[^']+'" \
         | head -1 \
@@ -33,12 +33,20 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
         | sed "s/'$//" \
         || true)
 
-    # Fallback: last bare word argument
     if [[ -z "$TERM" ]]; then
         TERM=$(echo "$COMMAND" \
             | grep -oE "(--define|--id|-q)\s+[^ ]+" \
             | head -1 \
             | awk '{print $2}' \
+            || true)
+    fi
+
+    # Fallback: last CamelCase or MixedCase identifier in the command
+    # Catches bare args like: searchfox-cli --cpp AudioSink
+    if [[ -z "$TERM" ]]; then
+        TERM=$(echo "$COMMAND" \
+            | grep -oE '\b[A-Z][A-Za-z0-9]{3,}\b' \
+            | tail -1 \
             || true)
     fi
 
@@ -62,11 +70,19 @@ fi
 USER_EMAIL=$(git -C "$WIKI_PATH" config user.email 2>/dev/null || echo "unknown")
 DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# Search wiki (max 3 files to avoid flooding context)
-MATCHED_FILES=$(grep -rl "$TERM" "$WIKI_PATH" --include="*.md" 2>/dev/null | head -3 || true)
+# Search wiki:
+# 1. Case-insensitive content search (grep -ril)
+# 2. Case-insensitive filename match (find -iname)
+# Combine results, deduplicate, limit to 3 files
+CONTENT_MATCHES=$(grep -ril "$TERM" "$WIKI_PATH" --include="*.md" 2>/dev/null || true)
+FILENAME_MATCHES=$(find "$WIKI_PATH" -iname "*${TERM}*.md" 2>/dev/null || true)
+MATCHED_FILES=$(printf '%s\n%s\n' "$CONTENT_MATCHES" "$FILENAME_MATCHES" \
+    | grep -v '^$' \
+    | sort -u \
+    | head -3 \
+    || true)
 
 if [[ -z "$MATCHED_FILES" ]]; then
-    # Miss: log for denominator tracking
     if [[ -f "$LOG" ]]; then
         jq -cn \
             --arg date "$DATE" \
@@ -93,6 +109,6 @@ fi
 echo "[WIKI HIT] '$TERM' found in wiki — run /firefox-wiki:lookup '$TERM' before searching code."
 while IFS= read -r FILE; do
     REL="${FILE#$WIKI_PATH/}"
-    SNIPPET=$(grep -m 1 "$TERM" "$FILE" 2>/dev/null | head -c 120 || true)
+    SNIPPET=$(grep -im 1 "$TERM" "$FILE" 2>/dev/null | head -c 120 || true)
     echo "  $REL: $SNIPPET"
 done <<< "$MATCHED_FILES"
