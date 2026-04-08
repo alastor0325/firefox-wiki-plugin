@@ -46,6 +46,8 @@ Items discovered during development and usage. Add new items here rather than fi
 
 ## Skills
 
+- [x] **Regression tests for wiki-pre-lookup.sh** — `tests/test-pre-lookup.sh` added: 11 cases covering quoted flags, bare CamelCase extraction, case-insensitive match, filename match, Grep path filtering, and miss cases.
+
 - [ ] **`init` skill missing `architecture/` directory** — See wiki structure note above.
 
 - [ ] **Plugin version 0.5.0 requires restart to take effect** — Skills are cached at session startup; `/reload-plugins` does not re-read SKILL.md from disk. Document this clearly in README so users know to restart Claude Code after plugin updates.
