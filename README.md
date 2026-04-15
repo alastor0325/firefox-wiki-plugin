@@ -20,18 +20,22 @@ You can also add knowledge manually at any time — spec URLs, bug learnings, or
 
 ## Install
 
-**1. Add the plugin:**
-```shell
-/plugin marketplace add firefox-wiki@firefox-wiki-local
-/plugin install firefox-wiki@firefox-wiki-local
+**1. Clone this plugin repo:**
+```bash
+git clone https://github.com/alastor0325/firefox-wiki-plugin ~/firefox-wiki-plugin
 ```
 
-**2. Clone the wiki content repo:**
+**2. Install the plugin:**
+```shell
+/plugin install ~/firefox-wiki-plugin
+```
+
+**3. Clone the wiki content repo:**
 ```bash
 git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
 ```
 
-**3. Initialize:**
+**4. Initialize:**
 ```shell
 /firefox-wiki:init
 ```
