@@ -20,14 +20,17 @@ You can also add knowledge manually at any time — spec URLs, bug learnings, or
 
 ## Install
 
+Run these commands in your terminal (not in the Claude Code prompt):
+
 **1. Clone this plugin repo:**
 ```bash
 git clone https://github.com/alastor0325/firefox-wiki-plugin ~/firefox-wiki-plugin
 ```
 
-**2. Install the plugin:**
-```shell
-/plugin install ~/firefox-wiki-plugin
+**2. Register and install the plugin:**
+```bash
+claude plugin marketplace add ~/firefox-wiki-plugin
+claude plugin install firefox-wiki@firefox-wiki-plugin
 ```
 
 **3. Clone the wiki content repo:**
@@ -35,8 +38,8 @@ git clone https://github.com/alastor0325/firefox-wiki-plugin ~/firefox-wiki-plug
 git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
 ```
 
-**4. Initialize:**
-```shell
+**4. Initialize** (in Claude Code):
+```
 /firefox-wiki:init
 ```
 
