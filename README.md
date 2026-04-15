@@ -46,8 +46,21 @@ git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
 This verifies dependencies and creates the wiki directory structure. Follow any prompts it shows.
 
 **Requirements:** `jq` · `pandoc` · `bmo-to-md`
+
+macOS:
 ```bash
 brew install jq pandoc && cargo install bmo-to-md
+```
+
+Linux:
+```bash
+sudo apt install jq pandoc && cargo install bmo-to-md   # Debian/Ubuntu
+sudo dnf install jq pandoc && cargo install bmo-to-md   # Fedora
+```
+
+Windows:
+```powershell
+winget install jqlang.jq JohnMacFarlane.Pandoc && cargo install bmo-to-md
 ```
 
 ---
