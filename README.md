@@ -16,6 +16,8 @@ Once installed, no ongoing effort is required.
 
 **After every wiki write** — a hook runs a lightweight lint pass to catch broken links and stale references.
 
+**During every tracked skill** — when Claude invokes a code-touching skill (`bug-start`, `triage`, `review-patch`, `analyze-profile`, and others), a hook records it as the session's current skill, and any wiki lookups that follow are tagged with it. This lets `/firefox-wiki:stats` answer not just "was the wiki consulted?" overall, but "which kinds of work consult it, and which run without it." The tracked-skill list lives in [`scripts/wiki-relevant-skills.txt`](scripts/wiki-relevant-skills.txt) — one name per line, edit to add or remove.
+
 You can also add knowledge manually at any time — spec URLs, bug learnings, or free-form facts — using `/firefox-wiki:add`. See [Commands](#commands) for details.
 
 ## Install
@@ -137,15 +139,22 @@ For pages that are overdue, `ingest` and `add` will nudge you to run `/firefox-w
 
 ---
 
-## Measuring search time saved
+## Measuring usage
 
-Run `/firefox-wiki:stats` after a few investigation sessions. Look for:
+Run `/firefox-wiki:stats` after a few investigation sessions. It runs a full analysis script ([`scripts/wiki-stats.py`](scripts/wiki-stats.py)) over the usage log and prints a report with these metrics:
 
-- **Hit rate** — what percentage of code searches were preceded by a wiki lookup. A rising hit rate means Claude is finding prior knowledge before searching code.
-- **Most-consulted pages** — which components and patterns Claude reaches for most. If the top pages match the areas you work in, the wiki is well-targeted.
-- **Lookup outcomes** — how often a lookup led to skipping a code search entirely vs. still searching. This is the direct measure of time saved.
+- **Overall hit rate** — of all code searches that triggered a wiki check, how many found relevant content. A rising rate means Claude is finding prior knowledge before reading code.
+- **Per-skill coverage** — of N runs of a skill, how many consulted the wiki at all. This is the unbiased answer to "is the wiki being used where it should be?" — a low number is not a low hit rate, it means the wiki isn't being reached for during that kind of work.
+- **Per-skill hit rate** — when a skill does consult the wiki, how often it finds something. Low coverage + high hit rate means the content exists but isn't being reached; high coverage + low hit rate means the content is missing for that skill's topics.
+- **Most / never consulted pages** — which pages are load-bearing, and which have never been read (candidates to improve or remove).
+- **False-confidence rate** — how often a wiki-sourced hypothesis turned out wrong (from `ingest` events). A high rate means some pages are misleading investigations — run `/firefox-wiki:verify`.
+- **Per-pattern correction rate** (triage) — joins triage wiki reads to `~/firefox-triage/decisions-log.jsonl`: which patterns correlate with a human revising the draft. High-correction patterns are candidates to re-verify or rewrite.
 
-If hit rate is low after several sessions, the wiki likely lacks coverage for your area — use `/firefox-wiki:add` to seed it with the components you work on most.
+The report ends with concrete recommendations derived from the above. If per-skill coverage is low for the areas you work in, the wiki likely lacks content there — use `/firefox-wiki:add` to seed it.
+
+Useful flags: `--since YYYY-MM-DD` (window to a date range), `--json` (machine-readable output).
+
+> Attribution is best-effort: a skill stays "current" until the next skill starts, so wiki reads done after a skill's work but before the next one keep the prior tag (a mild over-count). Parallel sub-agents of the same skill (e.g. `/triage` fan-out) share one slot — the *skill* stays correct, only the per-instance link is approximate. See [`docs/skill-attribution.md`](docs/skill-attribution.md).
 
 ---
 
@@ -165,11 +174,20 @@ If hit rate is low after several sessions, the wiki likely lacks coverage for yo
 
 ## Development
 
-Changes to `skills/*/SKILL.md` or `hooks/hooks.json` take effect immediately — no reinstall needed.
+Edits to `skills/*/SKILL.md` and to the hook **scripts** in `scripts/` take effect immediately — command hooks read their script fresh on each fire. Changes to **`hooks/hooks.json` itself** (adding/removing a hook registration) require a Claude Code restart / plugin reload to take effect.
 
 ```bash
 claude plugin validate .               # validate plugin structure
 claude -p '/firefox-wiki:lint --full'  # test a skill
+```
+
+**Tests** (no dependencies; run directly):
+
+```bash
+bash   tests/test-pre-lookup.sh            # wiki pre-lookup hit/miss detection
+bash   tests/test-skill-attribution.sh     # current-skill slot model
+bash   tests/test-allowlist-sweep.sh       # every allowlisted skill: attribution + exists
+python3 tests/test-wiki-stats.py           # wiki-stats.py metric computation
 ```
 
 Bump `version` in `.claude-plugin/plugin.json` before any commit that changes skills or hooks.
