@@ -227,12 +227,33 @@ land correct decisions.
 
 #### Attribution caveats
 
-If any `session_start` event has `attribution_confidence: "ambiguous"`
-(more than one skill instance was on the stack when the event fired
-— a sign of true parallel skill execution within one Claude session),
-list its `concurrent_skills` and skip from per-skill rates above. Show
-the count of skipped events in a footer so the reader knows the
-denominator excludes ambiguous attribution.
+Wiki events (`wiki_read`, `pre_lookup`) carry an
+`attribution_confidence` field set by `_active-skill.sh` at the moment
+they fire. It reflects how trustworthy the `skill` / `instance_id`
+tags are, given that background sub-agents share the parent's
+session_id (so a single stack can hold genuinely-parallel instances):
+
+- **`certain`** — exactly one skill instance was active. Both `skill`
+  and `instance_id` are reliable. Use everywhere.
+- **`skill-certain`** — multiple instances active but all the *same*
+  skill (e.g. /triage fanning out parallel /bug-start sub-agents). The
+  `skill` tag is reliable; the `instance_id` is best-effort (the stack
+  top, which may not be the true owner). **Include in per-skill
+  Coverage and Hit Rate** (skill is what those measure), but **exclude
+  from any per-instance join** (e.g. the hypothesis_from_wiki
+  bug-correlation, which should use args/bug_id matching instead).
+- **`ambiguous`** — multiple instances of *different* skills active
+  concurrently. Neither tag is trustworthy. **Exclude from all
+  per-skill metrics.** Count these and show the total in a footer so
+  the reader knows the denominator excluded them.
+- **`null`** (field absent or empty) — no skill was active when the
+  event fired (e.g. ad-hoc wiki browsing outside any tracked skill).
+  Group under `(no active skill)`.
+
+When computing the per-skill tables above, treat `certain` and
+`skill-certain` events as attributable to their `skill`; drop
+`ambiguous` and `null`. Report the dropped counts in a one-line
+footer.
 
 ### 4. Closing recommendation
 

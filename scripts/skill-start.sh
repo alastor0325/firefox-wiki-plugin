@@ -18,58 +18,52 @@ WIKI_PATH="${WIKI_PATH:-$HOME/firefox-wiki}"
 LOG="$WIKI_PATH/usage-log.jsonl"
 [[ -f "$LOG" ]] || exit 0  # wiki not initialized — silently no-op
 
-INPUT=$(cat)
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# shellcheck source=/dev/null
+source "$PLUGIN_ROOT/scripts/_stack-lib.sh"
 
-# One-shot probe: capture the raw hook stdin the first time we run, so we
-# can see what fields Claude Code's harness passes (transcript_path, cwd,
-# agent_id, etc.). Auto-disables after the first write.
-PROBE_FILE="$HOME/.claude/state/hook-input-sample.json"
-if [[ ! -f "$PROBE_FILE" ]]; then
-    mkdir -p "$(dirname "$PROBE_FILE")"
-    printf '%s\n' "$INPUT" > "$PROBE_FILE"
-fi
+INPUT=$(cat)
 
 SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // ""')
 [[ -z "$SKILL" ]] && exit 0
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ALLOWLIST="$PLUGIN_ROOT/scripts/wiki-relevant-skills.txt"
 [[ -f "$ALLOWLIST" ]] || exit 0
 grep -qxF "$SKILL" "$ALLOWLIST" 2>/dev/null || exit 0
 
-SESSION_ID="${CLAUDE_CODE_SESSION_ID:-${CLAUDE_SESSION_ID:-unknown}}"
-STATE_DIR="$HOME/.claude/state"
-mkdir -p "$STATE_DIR"
-STACK="$STATE_DIR/skill-stack-$SESSION_ID.json"
+SESSION_ID=$(stack_session_id "$INPUT")
+mkdir -p "$HOME/.claude/state"
+STACK=$(stack_path "$SESSION_ID")
 
-# Generate a unique instance_id for this skill invocation.
 INSTANCE_ID=$(uuidgen 2>/dev/null \
     || python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null \
     || echo "fallback-$$-$(date +%s)")
 
 ARGS=$(echo "$INPUT" | jq -c '.tool_input.args // null')
+TS=$(stack_now)
 
-# ISO-8601 UTC. Prefer ms precision via python (cross-platform), then
-# fall back to GNU date %3N, then plain second precision.
-TS=$(python3 -c 'from datetime import datetime, timezone; print(datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00","Z"))' 2>/dev/null \
-    || date -u +%Y-%m-%dT%H:%M:%S.%3NZ 2>/dev/null \
-    || date -u +%Y-%m-%dT%H:%M:%SZ)
-# Guard against macOS-style literal "3N" leaking through if %N is unsupported.
-case "$TS" in
-    *".3NZ"|*"%3NZ") TS=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;;
-esac
-
-# Push onto the stack (initialize empty if missing).
+# Push onto the stack under lock (parallel sub-agents may share it).
+stack_lock "$STACK"
+trap 'stack_unlock "$STACK"' EXIT
 [[ -f "$STACK" ]] || echo "[]" > "$STACK"
 TMP=$(mktemp)
-jq --arg id "$INSTANCE_ID" \
-   --arg skill "$SKILL" \
-   --arg ts "$TS" \
-   --argjson args "$ARGS" \
-   '. + [{instance_id: $id, skill: $skill, args: $args, started_at: $ts}]' \
-   "$STACK" > "$TMP" && mv "$TMP" "$STACK"
+if jq --arg id "$INSTANCE_ID" \
+      --arg skill "$SKILL" \
+      --arg ts "$TS" \
+      --argjson args "$ARGS" \
+      '. + [{instance_id: $id, skill: $skill, args: $args, started_at: $ts}]' \
+      "$STACK" > "$TMP" 2>/dev/null; then
+    mv "$TMP" "$STACK"
+else
+    # Corrupt stack (e.g. an interrupted concurrent write) — reset to just
+    # this entry rather than losing the hook entirely.
+    rm -f "$TMP"
+    jq -cn --arg id "$INSTANCE_ID" --arg skill "$SKILL" --arg ts "$TS" --argjson args "$ARGS" \
+        '[{instance_id: $id, skill: $skill, args: $args, started_at: $ts}]' > "$STACK"
+fi
+stack_unlock "$STACK"
+trap - EXIT
 
-# Append session-start event.
 USER_EMAIL=$(git -C "$WIKI_PATH" config user.email 2>/dev/null || echo "unknown")
 jq -cn \
     --arg date "$TS" \
