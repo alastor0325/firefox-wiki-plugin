@@ -7,6 +7,13 @@
           "type": "command",
           "command": "${CLAUDE_PLUGIN_ROOT}/scripts/wiki-pre-lookup.sh"
         }]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [{
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/skill-start.sh"
+        }]
       }
     ],
     "PostToolUse": [
@@ -29,6 +36,13 @@
         "hooks": [{
           "type": "command",
           "command": "${CLAUDE_PLUGIN_ROOT}/scripts/wiki-lint-trigger.sh"
+        }]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [{
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/scripts/skill-end.sh"
         }]
       }
     ]

@@ -82,6 +82,13 @@ MATCHED_FILES=$(printf '%s\n%s\n' "$CONTENT_MATCHES" "$FILENAME_MATCHES" \
     | head -3 \
     || true)
 
+# Pull the innermost active skill (if any) so we can attribute this
+# pre_lookup to the skill instance that triggered it.
+ACTIVE=$(bash "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}/scripts/_active-skill.sh" 2>/dev/null || true)
+read -r ACTIVE_IID ACTIVE_SKILL <<< "${ACTIVE:-}" || true
+ACTIVE_IID="${ACTIVE_IID:-}"
+ACTIVE_SKILL="${ACTIVE_SKILL:-}"
+
 if [[ -z "$MATCHED_FILES" ]]; then
     if [[ -f "$LOG" ]]; then
         jq -cn \
@@ -89,7 +96,11 @@ if [[ -z "$MATCHED_FILES" ]]; then
             --arg user "$USER_EMAIL" \
             --arg term "$TERM" \
             --arg tool "$TOOL_NAME" \
-            '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: false}' >> "$LOG"
+            --arg iid "$ACTIVE_IID" \
+            --arg skill "$ACTIVE_SKILL" \
+            '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: false,
+              instance_id: (if $iid == "" then null else $iid end),
+              skill: (if $skill == "" then null else $skill end)}' >> "$LOG"
     fi
     exit 0
 fi
@@ -103,7 +114,11 @@ if [[ -f "$LOG" ]]; then
         --arg term "$TERM" \
         --arg tool "$TOOL_NAME" \
         --argjson files "[$MATCHED_JSON]" \
-        '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: true, matched_files: $files}' >> "$LOG"
+        --arg iid "$ACTIVE_IID" \
+        --arg skill "$ACTIVE_SKILL" \
+        '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: true, matched_files: $files,
+          instance_id: (if $iid == "" then null else $iid end),
+          skill: (if $skill == "" then null else $skill end)}' >> "$LOG"
 fi
 
 echo "[WIKI HIT] '$TERM' found in wiki — run /firefox-wiki:lookup '$TERM' before searching code."

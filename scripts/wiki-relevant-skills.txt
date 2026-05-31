@@ -1,0 +1,12 @@
+bug-start
+triage
+triage-apply-feedback
+firefox-implementation
+review-patch
+review-feedback
+analyze-profile
+check-firefox-log
+ci-failure-analysis
+update-investigation
+verify
+sec-approval
