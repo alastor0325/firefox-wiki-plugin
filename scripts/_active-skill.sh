@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-SESSION_ID="${CLAUDE_SESSION_ID:-unknown}"
+SESSION_ID="${CLAUDE_CODE_SESSION_ID:-${CLAUDE_SESSION_ID:-unknown}}"
 STACK="$HOME/.claude/state/skill-stack-$SESSION_ID.json"
 [[ -f "$STACK" ]] || exit 0
 

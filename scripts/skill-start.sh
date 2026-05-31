@@ -19,6 +19,16 @@ LOG="$WIKI_PATH/usage-log.jsonl"
 [[ -f "$LOG" ]] || exit 0  # wiki not initialized — silently no-op
 
 INPUT=$(cat)
+
+# One-shot probe: capture the raw hook stdin the first time we run, so we
+# can see what fields Claude Code's harness passes (transcript_path, cwd,
+# agent_id, etc.). Auto-disables after the first write.
+PROBE_FILE="$HOME/.claude/state/hook-input-sample.json"
+if [[ ! -f "$PROBE_FILE" ]]; then
+    mkdir -p "$(dirname "$PROBE_FILE")"
+    printf '%s\n' "$INPUT" > "$PROBE_FILE"
+fi
+
 SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // ""')
 [[ -z "$SKILL" ]] && exit 0
 
@@ -27,7 +37,7 @@ ALLOWLIST="$PLUGIN_ROOT/scripts/wiki-relevant-skills.txt"
 [[ -f "$ALLOWLIST" ]] || exit 0
 grep -qxF "$SKILL" "$ALLOWLIST" 2>/dev/null || exit 0
 
-SESSION_ID="${CLAUDE_SESSION_ID:-unknown}"
+SESSION_ID="${CLAUDE_CODE_SESSION_ID:-${CLAUDE_SESSION_ID:-unknown}}"
 STATE_DIR="$HOME/.claude/state"
 mkdir -p "$STATE_DIR"
 STACK="$STATE_DIR/skill-stack-$SESSION_ID.json"
