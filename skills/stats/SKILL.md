@@ -8,7 +8,33 @@ version: 0.1.0
 
 Run once a month to measure whether the wiki is actually helping investigations.
 
-## Steps
+## Primary path: run the analysis script
+
+The full analysis is implemented in `scripts/wiki-stats.py` (stdlib only,
+no deps). Run it and present its report — do NOT hand-compute the
+metrics; the script is the source of truth and is unit-tested by
+`tests/test-wiki-stats.py`.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/wiki-stats.py"
+```
+
+It auto-detects `$WIKI_PATH` (default `~/firefox-wiki`), the decisions
+log (`$DECISIONS_LOG` or `~/firefox-triage/decisions-log.jsonl`), and the
+allowlist (`scripts/wiki-relevant-skills.txt`). Useful flags:
+
+- `--since YYYY-MM-DD` — only count events on/after a date (e.g. last month)
+- `--json` — machine-readable output instead of the text report
+- `--wiki-path PATH` / `--decisions-log PATH` — override locations
+
+Print the report to the user, then add a one-or-two-line interpretation
+highlighting the most urgent item from the report's Recommendations
+section. If the script prints "No usage data yet", relay that and stop.
+
+The sections below document what each metric means — read them to
+interpret the script's output, not to recompute it by hand.
+
+## Reference: metric definitions (implemented by the script)
 
 ### 1. Locate the wiki and load the log
 
