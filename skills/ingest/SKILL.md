@@ -156,7 +156,22 @@ Append a single JSON object (one line) to `usage-log.jsonl`:
 {"date": "<ISO timestamp>", "event_type": "ingest", "user": "<git -C $WIKI_PATH config user.email>", "trigger": "<hook|user>", "bug_id": <number>, "pages_created": ["bugs/...", "patterns/..."], "pages_updated": ["components/...", "relations/..."], "hypothesis_from_wiki": <true|false>, "hypothesis_term": "<term if applicable>", "hypothesis_correct": null}
 ```
 
-To populate `hypothesis_from_wiki` and `hypothesis_term`: scan the last 8 hours of `pre_lookup` events in `usage-log.jsonl` for any entry where `wiki_hit: true`. Use the current timestamp minus 8 hours as the cutoff. If one or more such events are found, set `hypothesis_from_wiki: true` and set `hypothesis_term` to the `term` field of the first matching event. Otherwise set `hypothesis_from_wiki: false` and `hypothesis_term: ""`.
+To populate `hypothesis_from_wiki` and `hypothesis_term`, prefer **instance-based** correlation over time-window matching — the 8-hour fallback below loses precision when ingests are batched or backfilled.
+
+**Primary path (precise, when the hooks recorded an instance):**
+
+1. Read `usage-log.jsonl`. Find every `session_start` event with `skill == "bug-start"` AND `args == "<bug_id>"` (or `args` containing the bug_id as a substring — bug-start sometimes accepts extra arguments).
+2. Collect the `instance_id` of each match into a set. Call it `BUG_INSTANCES`.
+3. Scan all `wiki_read` and `pre_lookup` events whose `instance_id` is in `BUG_INSTANCES`.
+4. If any `pre_lookup` in that set has `wiki_hit: true` → set `hypothesis_from_wiki: true` and `hypothesis_term` to its `term`.
+5. Else if any `wiki_read` in that set exists (the engineer opened a wiki page) → set `hypothesis_from_wiki: true` and `hypothesis_term` to the `file` field of the most recent such read (basename minus `.md`).
+6. Else → set `hypothesis_from_wiki: false` and `hypothesis_term: ""`.
+
+This is reliable because every wiki event during a `/bug-start` session is tagged with that session's `instance_id` by the wiki-plugin hooks — no timestamp guessing.
+
+**Fallback (8-hour window, only when no `session_start` event matches this bug):**
+
+If `BUG_INSTANCES` is empty (this can happen for ingests triggered via hook on commits without a preceding `/bug-start`), fall back to the legacy scan: any `pre_lookup` with `wiki_hit: true` in the last 8 hours sets `hypothesis_from_wiki: true`. Otherwise `false`.
 
 `hypothesis_correct` is always written as `null` at ingest time — it will be backfilled automatically by the verify skill when it later verifies the pages listed in `pages_created` and `pages_updated`.
 
