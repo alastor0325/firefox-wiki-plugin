@@ -14,7 +14,9 @@ Run once a month to measure whether the wiki is actually helping investigations.
 
 Determine `WIKI_PATH` (`$WIKI_PATH` or `~/firefox-wiki/`). Read `$WIKI_PATH/usage-log.jsonl`.
 
-If the file is missing or empty, stop and say:
+Also locate `TRIAGE_DIR` (`$TRIAGE_DIR` or `~/firefox-triage/`). Read `$TRIAGE_DIR/decisions-log.jsonl` if it exists — it's optional; if missing, the per-pattern correction rate section below is skipped.
+
+If `usage-log.jsonl` is missing or empty, stop and say:
 
 > No usage data yet. The wiki needs to be used for at least one month before stats are meaningful.
 
@@ -28,6 +30,7 @@ For each metric below, if the required fields are absent on an event, skip that 
 - `ingest` — post-investigation bug knowledge additions
 - `url-ingest` / `pdf-ingest` — spec/platform ingests (from add or init)
 - `add` — user-triggered natural-language fact additions
+- `session_start` / `session_end` — skill invocation brackets written by the wiki plugin's PreToolUse/PostToolUse hooks on the Skill tool. Each has `instance_id`, `skill`, `claude_session`. Wiki events fired during a skill instance inherit the same `instance_id` + `skill` fields.
 
 ### 3. Compute and display metrics
 
@@ -110,6 +113,127 @@ Count user-triggered `add` events by month. Shows how actively the engineer cont
 
 List both categories.
 
+#### Per-Skill Coverage
+
+The unbiased "is the wiki being consulted where it should be?" metric.
+Uses `session_start` / `session_end` events emitted by the wiki-plugin's
+PreToolUse/PostToolUse hooks on the Skill tool. Each session_start has
+an `instance_id`, a `skill` name, and a `claude_session`. Wiki events
+(`wiki_read`, `pre_lookup`) emitted during a skill instance inherit
+that `instance_id`.
+
+For each tracked skill in `wiki-relevant-skills.txt`:
+
+- **Instances**: count of `session_start` events with that `skill`.
+- **Consulted**: of those instances, count how many have at least one
+  `wiki_read` or `pre_lookup` event with the same `instance_id`.
+- **Coverage**: `Consulted / Instances`.
+
+Display:
+
+```
+| Skill                    | Instances | Consulted | Coverage |
+|--------------------------|-----------|-----------|----------|
+| /bug-start               |   ...     |   ...     |   ...    |
+| /firefox-implementation  |   ...     |   ...     |   ...    |
+| /triage                  |   ...     |   ...     |   ...    |
+| /review-patch            |   ...     |   ...     |   ...    |
+| /analyze-profile         |   ...     |   ...     |   ...    |
+```
+
+Mark any row with Instances < 5 as `(low signal)` — a 100% rate over
+2 instances is not a meaningful statistic.
+
+A low coverage rate on a skill with high instance count means the
+skill is doing code-touching work without consulting the wiki at all
+— either the wiki has nothing useful on that topic (real coverage
+gap) or the skill isn't wired to look up the wiki (workflow gap).
+
+Targets per skill: >50% at 3 months of use, >70% at 6 months. Skills
+below 30% after a month of use → flag for review.
+
+#### Per-Skill Hit Rate
+
+The "when the skill consults the wiki, does it find something?" metric.
+Pre-existing Hit Rate but broken out per skill so you can see which
+skills' consultations are productive vs unproductive.
+
+For each tracked skill:
+
+- **Consultations**: count of `pre_lookup` events with that `skill` tag.
+- **Hits**: of those, count where `wiki_hit: true`.
+- **Hit Rate**: `Hits / Consultations`.
+
+Display:
+
+```
+| Skill                    | Consultations | Hits | Hit Rate |
+|--------------------------|---------------|------|----------|
+| /bug-start               |     ...       | ...  |   ...    |
+| /firefox-implementation  |     ...       | ...  |   ...    |
+| /triage                  |     ...       | ...  |   ...    |
+```
+
+Same `(low signal)` marker for Consultations < 10.
+
+Low hit rate on a high-volume skill = wiki content is missing for the
+topics that skill cares about → coverage gap. Pair with the
+Coverage table above:
+
+- **High Coverage + High Hit Rate** → wiki is working for this skill.
+- **High Coverage + Low Hit Rate** → skill is consulting but not
+  finding anything → write more pages on this skill's topics.
+- **Low Coverage + High Hit Rate** → wiki has the right content but
+  the skill isn't being routed to it → check lookup heuristics or
+  skill wiring.
+- **Low Coverage + Low Hit Rate** → wiki is not in this skill's
+  workflow at all → bigger architectural question.
+
+#### Per-Pattern Correction Rate (triage-apply-feedback)
+
+The "is this wiki pattern actually helping triage?" metric. Joins
+`~/firefox-wiki/usage-log.jsonl` (wiki reads tagged with `skill: triage`)
+with `~/firefox-triage/decisions-log.jsonl` (corrections written by
+`/triage-apply-feedback`). If the file doesn't exist, skip this
+section entirely.
+
+For each `wiki_read` event with `skill: triage` (or any other tracked
+skill that loads patterns at session start):
+
+- Read the `instance_id` and the `file` (e.g. `triage/chrome-ua-assume-firefox.md`).
+- Find the `session_start` event with the same `instance_id` to get the
+  bug_id(s) being processed (from `args`).
+- Look in `decisions-log.jsonl` for `apply-feedback` events with any of
+  those bug_ids. If one or more exist, the pattern was present in a
+  session that ended in a correction.
+
+Aggregate by wiki page file:
+
+```
+| Pattern page                        | Sessions present | Corrected | Correction Rate |
+|-------------------------------------|------------------|-----------|-----------------|
+| triage/chrome-ua-assume-firefox.md  |         12       |     1     |       8%        |
+| triage/ai-advised-pref-changes.md   |         18       |     7     |      39%        |   ← red flag
+| triage/wrong-component-graphics-routing.md |    9      |     0     |       0%        |
+```
+
+High correction rate (>25% with N≥8) on a pattern means: when /triage
+sees this pattern, the human ends up correcting the resulting draft
+more often than not. Candidates for re-verification via
+`/firefox-wiki:verify` or rewrite via `/firefox-wiki:add`.
+
+Low correction rate is the desired state — the pattern is helping
+land correct decisions.
+
+#### Attribution caveats
+
+If any `session_start` event has `attribution_confidence: "ambiguous"`
+(more than one skill instance was on the stack when the event fired
+— a sign of true parallel skill execution within one Claude session),
+list its `concurrent_skills` and skip from per-skill rates above. Show
+the count of skipped events in a footer so the reader knows the
+denominator excludes ambiguous attribution.
+
 ### 4. Closing recommendation
 
 Print exactly one recommendation based on the results:
@@ -118,5 +242,7 @@ Print exactly one recommendation based on the results:
 - Hit rate low: "Wiki lookup is not being triggered. Check that /firefox-wiki:lookup is integrated into your bug-start workflow."
 - False confidence high: "Wiki content may be misleading investigations. Run /firefox-wiki:lint --full and review stale pages."
 - Ingest coverage low: "Many investigations are not being ingested. Check that Hook 1 (git commit) is firing correctly."
+- Per-skill coverage uneven: "Skill X has <30% wiki coverage over N≥10 instances → check whether the wiki has content for X's topics, or whether X's workflow needs to call /firefox-wiki:lookup."
+- Per-skill hit rate uneven: "Skill X has <20% hit rate over N≥10 consultations → the wiki is missing pages on X's topics; consider running /firefox-wiki:add for recurring symptoms."
 
 Apply whichever condition is most urgent. If multiple apply, print multiple recommendations.
