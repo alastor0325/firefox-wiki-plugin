@@ -82,15 +82,14 @@ MATCHED_FILES=$(printf '%s\n%s\n' "$CONTENT_MATCHES" "$FILENAME_MATCHES" \
     | head -3 \
     || true)
 
-# Pull the innermost active skill (if any) so we can attribute this
-# pre_lookup to the skill instance that triggered it. Pass the session id
-# from this hook's own stdin so the right per-session stack is consulted.
+# Tag this pre_lookup with the session's current skill (if any) so we can
+# attribute it. Pass the session id from this hook's own stdin so the
+# right per-session slot is consulted.
 ACTIVE_SID=$(echo "$INPUT" | jq -r '.session_id // ""' 2>/dev/null || true)
 ACTIVE=$(bash "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}/scripts/_active-skill.sh" "$ACTIVE_SID" 2>/dev/null || true)
-read -r ACTIVE_IID ACTIVE_SKILL ACTIVE_CONF <<< "${ACTIVE:-}" || true
+read -r ACTIVE_IID ACTIVE_SKILL <<< "${ACTIVE:-}" || true
 ACTIVE_IID="${ACTIVE_IID:-}"
 ACTIVE_SKILL="${ACTIVE_SKILL:-}"
-ACTIVE_CONF="${ACTIVE_CONF:-}"
 
 if [[ -z "$MATCHED_FILES" ]]; then
     if [[ -f "$LOG" ]]; then
@@ -101,11 +100,9 @@ if [[ -z "$MATCHED_FILES" ]]; then
             --arg tool "$TOOL_NAME" \
             --arg iid "$ACTIVE_IID" \
             --arg skill "$ACTIVE_SKILL" \
-            --arg conf "$ACTIVE_CONF" \
             '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: false,
               instance_id: (if $iid == "" then null else $iid end),
-              skill: (if $skill == "" then null else $skill end),
-              attribution_confidence: (if $conf == "" then null else $conf end)}' >> "$LOG"
+              skill: (if $skill == "" then null else $skill end)}' >> "$LOG"
     fi
     exit 0
 fi
@@ -121,11 +118,9 @@ if [[ -f "$LOG" ]]; then
         --argjson files "[$MATCHED_JSON]" \
         --arg iid "$ACTIVE_IID" \
         --arg skill "$ACTIVE_SKILL" \
-        --arg conf "$ACTIVE_CONF" \
         '{date: $date, event_type: "pre_lookup", user: $user, trigger: "hook", term: $term, tool: $tool, wiki_hit: true, matched_files: $files,
           instance_id: (if $iid == "" then null else $iid end),
-          skill: (if $skill == "" then null else $skill end),
-          attribution_confidence: (if $conf == "" then null else $conf end)}' >> "$LOG"
+          skill: (if $skill == "" then null else $skill end)}' >> "$LOG"
 fi
 
 echo "[WIKI HIT] '$TERM' found in wiki — run /firefox-wiki:lookup '$TERM' before searching code."

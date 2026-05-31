@@ -20,19 +20,16 @@ if echo "$FILE" | grep -q "firefox-wiki/"; then
   USER_EMAIL=$(git -C "$WIKI_PATH_RESOLVED" config user.email 2>/dev/null || echo "unknown")
   ACTIVE_SID=$(echo "$INPUT" | jq -r '.session_id // ""' 2>/dev/null || true)
   ACTIVE=$(bash "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}/scripts/_active-skill.sh" "$ACTIVE_SID" 2>/dev/null || true)
-  read -r ACTIVE_IID ACTIVE_SKILL ACTIVE_CONF <<< "${ACTIVE:-}" || true
+  read -r ACTIVE_IID ACTIVE_SKILL <<< "${ACTIVE:-}" || true
   ACTIVE_IID="${ACTIVE_IID:-}"
   ACTIVE_SKILL="${ACTIVE_SKILL:-}"
-  ACTIVE_CONF="${ACTIVE_CONF:-}"
   jq -cn \
     --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg user "$USER_EMAIL" \
     --arg file "$REL_FILE" \
     --arg iid "$ACTIVE_IID" \
     --arg skill "$ACTIVE_SKILL" \
-    --arg conf "$ACTIVE_CONF" \
     '{date: $date, event_type: "wiki_read", user: $user, trigger: "hook", file: $file, query: null, bug_id: null,
       instance_id: (if $iid == "" then null else $iid end),
-      skill: (if $skill == "" then null else $skill end),
-      attribution_confidence: (if $conf == "" then null else $conf end)}' >> "$LOG"
+      skill: (if $skill == "" then null else $skill end)}' >> "$LOG"
 fi

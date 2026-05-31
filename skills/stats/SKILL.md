@@ -30,7 +30,7 @@ For each metric below, if the required fields are absent on an event, skip that 
 - `ingest` — post-investigation bug knowledge additions
 - `url-ingest` / `pdf-ingest` — spec/platform ingests (from add or init)
 - `add` — user-triggered natural-language fact additions
-- `session_start` / `session_end` — skill invocation brackets written by the wiki plugin's PreToolUse/PostToolUse hooks on the Skill tool. Each has `instance_id`, `skill`, `claude_session`. Wiki events fired during a skill instance inherit the same `instance_id` + `skill` fields.
+- `session_start` — one per tracked-skill invocation, written by the wiki plugin's PreToolUse(Skill) hook. Has `instance_id`, `skill`, `claude_session`, `args`. The hook also records the skill in a per-session "current skill" slot; wiki events (`wiki_read`, `pre_lookup`) fired afterward inherit that slot's `instance_id` + `skill` until the next skill-start overwrites it. There is no `session_end` event — see Attribution caveats below.
 
 ### 3. Compute and display metrics
 
@@ -116,11 +116,10 @@ List both categories.
 #### Per-Skill Coverage
 
 The unbiased "is the wiki being consulted where it should be?" metric.
-Uses `session_start` / `session_end` events emitted by the wiki-plugin's
-PreToolUse/PostToolUse hooks on the Skill tool. Each session_start has
-an `instance_id`, a `skill` name, and a `claude_session`. Wiki events
-(`wiki_read`, `pre_lookup`) emitted during a skill instance inherit
-that `instance_id`.
+Uses `session_start` events emitted by the wiki-plugin's PreToolUse(Skill)
+hook. Each has an `instance_id`, a `skill` name, and a `claude_session`.
+Wiki events (`wiki_read`, `pre_lookup`) fired while that skill is the
+session's current skill inherit its `instance_id`.
 
 For each tracked skill in `wiki-relevant-skills.txt`:
 
@@ -227,33 +226,35 @@ land correct decisions.
 
 #### Attribution caveats
 
-Wiki events (`wiki_read`, `pre_lookup`) carry an
-`attribution_confidence` field set by `_active-skill.sh` at the moment
-they fire. It reflects how trustworthy the `skill` / `instance_id`
-tags are, given that background sub-agents share the parent's
-session_id (so a single stack can hold genuinely-parallel instances):
+Attribution uses a "current skill" model: the PreToolUse(Skill) hook
+records the invoked skill in a per-session slot, and wiki events
+attribute to whatever skill is in that slot when they fire. The slot
+persists until the next skill-start overwrites it. (There is no end
+event — PostToolUse(Skill) fires when the Skill tool returns its
+instructions text, long before the skill's multi-turn work runs, so an
+end bracket would close before any real wiki consultation happened.)
 
-- **`certain`** — exactly one skill instance was active. Both `skill`
-  and `instance_id` are reliable. Use everywhere.
-- **`skill-certain`** — multiple instances active but all the *same*
-  skill (e.g. /triage fanning out parallel /bug-start sub-agents). The
-  `skill` tag is reliable; the `instance_id` is best-effort (the stack
-  top, which may not be the true owner). **Include in per-skill
-  Coverage and Hit Rate** (skill is what those measure), but **exclude
-  from any per-instance join** (e.g. the hypothesis_from_wiki
-  bug-correlation, which should use args/bug_id matching instead).
-- **`ambiguous`** — multiple instances of *different* skills active
-  concurrently. Neither tag is trustworthy. **Exclude from all
-  per-skill metrics.** Count these and show the total in a footer so
-  the reader knows the denominator excluded them.
-- **`null`** (field absent or empty) — no skill was active when the
-  event fired (e.g. ad-hoc wiki browsing outside any tracked skill).
-  Group under `(no active skill)`.
+Two known inaccuracies to keep in mind when reading the tables:
 
-When computing the per-skill tables above, treat `certain` and
-`skill-certain` events as attributable to their `skill`; drop
-`ambiguous` and `null`. Report the dropped counts in a one-line
-footer.
+- **Tail over-attribution.** Wiki reads done *after* a skill's work is
+  finished but *before* the next skill is invoked (e.g. ad-hoc code
+  browsing at the end of a session) still carry the last skill's
+  `instance_id`. This slightly inflates that skill's Consulted count.
+  There's no signal to detect it, so treat per-skill Coverage as a
+  modest over-estimate, not a precise figure.
+
+- **Parallel same-session sub-agents.** Background sub-agents share the
+  parent's session_id (verified 2026-05-31), so they share one slot;
+  the slot holds whichever sub-agent started most recently
+  (last-writer-wins). When `/triage` fans out N parallel `/bug-start`
+  sub-agents, their wiki reads may attribute to the wrong *instance* but
+  the *skill* is still `bug-start` for all of them — so per-skill
+  Coverage/Hit Rate stay meaningful, while per-instance joins (e.g. the
+  hypothesis_from_wiki bug-correlation) should fall back to args/bug_id
+  matching rather than instance_id.
+
+Events with `skill: null` had no current skill when they fired — group
+them under `(no active skill)` and exclude from per-skill tables.
 
 ### 4. Closing recommendation
 

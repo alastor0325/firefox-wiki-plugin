@@ -4,87 +4,94 @@
 
 The wiki usage log (`usage-log.jsonl`) records `pre_lookup` and
 `wiki_read` events whenever Claude consults the wiki. On their own these
-events answer "how often did a consultation succeed?" (hit rate) but not
-"which kind of work was consulting the wiki?" — and they cannot tell us
-when a code-touching task ran *without* consulting the wiki at all.
+answer "how often did a consultation succeed?" (hit rate) but not "which
+kind of work was consulting the wiki?" — and they cannot tell us when a
+code-touching task ran *without* consulting the wiki at all.
 
-To answer the second question we bracket every code-touching skill
-invocation with a `session_start` / `session_end` pair and tag the wiki
-events fired in between with the owning skill's `instance_id` + `skill`.
+To answer those, we tag each wiki event with the skill that was active
+when it fired, and we emit one `session_start` event per tracked-skill
+invocation (the denominator: how often each skill ran).
 
-## Mechanism
+## The model: "current skill" slot
 
 ```
-PreToolUse(Skill)  → skill-start.sh  → push {instance_id, skill, args} to
-                                        ~/.claude/state/skill-stack-<sid>.json
-                                      → write session_start event
+PreToolUse(Skill)  → skill-start.sh
+                     → overwrite ~/.claude/state/current-skill-<sid>.json
+                       = {instance_id, skill, args, started_at}
+                     → append a session_start event to usage-log.jsonl
 
-(during the skill) → wiki-pre-lookup.sh / log-wiki-read.sh
-                                      → read stack top via _active-skill.sh
-                                      → tag event with instance_id + skill
-                                        + attribution_confidence
-
-PostToolUse(Skill) → skill-end.sh    → pop the matching entry
-                                      → write session_end event
+(later tool calls) → wiki-pre-lookup.sh / log-wiki-read.sh
+                     → read the slot via _active-skill.sh
+                     → tag the pre_lookup / wiki_read event with the
+                       slot's instance_id + skill
 ```
 
-The stack file is keyed by the Claude **session id**, taken from the
-hook stdin's `.session_id` field (authoritative; the env var
-`CLAUDE_CODE_SESSION_ID` is a fallback).
+The slot is keyed by the Claude **session id**, taken from the hook
+stdin's `.session_id` field (env var `CLAUDE_CODE_SESSION_ID` is a
+fallback). It persists across conversation turns and is overwritten by
+the next skill-start. Only skills in `scripts/wiki-relevant-skills.txt`
+are tracked; all other Skill invocations no-op.
 
-Only skills listed in `scripts/wiki-relevant-skills.txt` are tracked;
-all other Skill invocations no-op.
+## Why there is no end event (the key finding)
 
-## The parallel-attribution finding (2026-05-31)
+The natural design is a `session_start` / `session_end` bracket:
+`PreToolUse(Skill)` opens it, `PostToolUse(Skill)` closes it, and wiki
+events in between attribute to the skill.
 
-A natural assumption was that background sub-agents (spawned via the
-Agent tool with `run_in_background`) would each carry a distinct
-session id or transcript path, letting each have its own stack file.
+A live test (2026-05-31) disproved the assumption that
+`PostToolUse(Skill)` marks the end of the skill's *work*:
 
-A direct probe disproved this. Two parallel sub-agents, each invoking a
-Skill, both reported in their hook stdin:
+```
+21:02:03.793  session_start  bug-start
+21:02:06.944  session_end    bug-start    ← 3.15s later
+```
 
-- the **same** `session_id` as the parent
-- the **same** `transcript_path` as the parent (the root conversation's
-  transcript)
-- a unique `tool_use_id` — but that is per-tool-call, so a later
-  `wiki_read` (a different tool call) cannot be linked back to the Skill
-  call that triggered it.
+`PostToolUse(Skill)` fires when the Skill tool returns its **instructions
+text** — about 3 seconds after start — not when the skill's multi-turn
+work finishes. A searchfox search run immediately afterward (which in a
+real `/bug-start` run is core investigation work) was logged with
+`skill: null`: the bracket had already closed.
 
-Conclusion: **there is no per-agent identifier available to the hooks.**
-Truly-parallel skill instances share one stack file.
+So an end-event bracket captures a ~3-second empty window and attributes
+essentially nothing. The current-skill slot, which persists until the
+next skill-start, is live during the actual work — which is the whole
+point.
 
-## How we stay honest: attribution_confidence
+## Known inaccuracies (documented, accepted)
 
-Rather than pretend, `_active-skill.sh` reports a confidence token with
-every lookup, derived from the live stack:
+1. **Tail over-attribution.** Wiki reads after a skill's work is done but
+   before the next skill-start still carry the last skill's instance_id.
+   No signal detects this, so per-skill Coverage is a modest
+   over-estimate.
 
-| Confidence | Stack state | Meaning |
-|---|---|---|
-| `certain` | exactly one instance | skill + instance_id both reliable |
-| `skill-certain` | >1 instance, all the same skill | skill reliable, instance_id best-effort |
-| `ambiguous` | >1 instance, mixed skills | neither reliable |
+2. **Parallel same-session sub-agents.** Background sub-agents share the
+   parent's session_id AND transcript_path (verified via a parallel
+   hook-input probe — only `tool_use_id` is unique, and that's per
+   tool-call so it can't link a later wiki_read back to the skill). They
+   therefore share one slot, last-writer-wins. In the dominant fan-out
+   case (`/triage` → N parallel `/bug-start`) the *skill* is the same for
+   all of them, so per-skill metrics stay valid; only per-instance joins
+   are unreliable and should fall back to args/bug_id matching.
 
-The dominant parallel case — `/triage` fanning out N parallel
-`/bug-start` sub-agents — is `skill-certain`: we cannot say *which*
-bug-start instance read a page, but we can say it was bug-start. That is
-exactly what per-skill Coverage and Hit Rate need, so those metrics stay
-valid under fan-out. Only genuinely mixed-skill concurrency degrades to
-`ambiguous`, and `/firefox-wiki:stats` excludes those events.
-
-## Concurrency safety
-
-Because parallel sub-agents write the same stack file, every
-read-modify-write is wrapped in a coarse `mkdir`-based lock
-(`stack_lock` / `stack_unlock` in `_stack-lib.sh`). A 10-way concurrent
-push test preserves all 10 entries with no corruption. If the JSON is
-ever found corrupt (interrupted write), `skill-start.sh` resets the
-stack to just the current entry rather than dropping the hook.
+These are deliberate trade-offs: the available hooks expose no per-agent
+identifier and no "skill work finished" signal, so precise per-instance
+attribution under parallelism is not achievable. Per-skill aggregates —
+the thing the evaluation actually needs — survive both inaccuracies.
 
 ## State location
 
-Stack files live in `~/.claude/state/` and are **per-machine,
-ephemeral** — a session id from one machine is meaningless on another,
-and stacks are torn down as skills end. They are not synced. Everything
-that must sync (scripts, allowlist, hook registration) ships in this
-plugin repo.
+Slot files live in `~/.claude/state/` and are **per-machine, ephemeral**.
+A session id from one machine is meaningless on another. They are not
+synced; everything that must sync (scripts, allowlist, hook registration)
+ships in this plugin repo.
+
+## Tests
+
+`tests/test-skill-attribution.sh` exercises the model end to end:
+allowlist filtering, slot overwrite on sequential skills, wiki events
+inheriting the current skill, `skill: null` before any skill / for
+non-allowlisted skills, and session-id isolation. Run it directly:
+
+```
+bash tests/test-skill-attribution.sh
+```
