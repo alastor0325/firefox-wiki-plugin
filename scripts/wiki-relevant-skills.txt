@@ -10,3 +10,5 @@ ci-failure-analysis
 update-investigation
 verify
 sec-approval
+spec-check
+specmap
