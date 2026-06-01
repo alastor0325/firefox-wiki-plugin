@@ -204,6 +204,17 @@ def compute_stats(
         bug = _first_int(args)
         if bug is not None:
             instance_bug[iid] = bug
+    # Backfill from the bug_id now tagged on pre_lookup/wiki_read events, for
+    # sessions that never emitted a session_start (e.g. ad-hoc or hook-only
+    # searches). session_start args win (inserted first); this fills empties.
+    for e in pre + reads:
+        iid = e.get("instance_id")
+        bug = e.get("bug_id")
+        if iid and bug is not None and iid not in instance_bug:
+            try:
+                instance_bug[iid] = int(bug)
+            except (TypeError, ValueError):
+                pass
     pattern_sessions: dict[str, set[str]] = defaultdict(set)
     pattern_corrected: dict[str, set[str]] = defaultdict(set)
     for e in reads:
@@ -227,6 +238,16 @@ def compute_stats(
             "correction_rate": corr / len(sess) if sess else None,
         })
     per_pattern.sort(key=lambda r: (-(r["correction_rate"] or 0), r["pattern"]))
+
+    # --- Direct wiki-use -> outcome join (bug-grained false confidence) ---
+    # Of bugs whose code search hit the wiki, how many were later corrected by
+    # a human (from the decisions log). Independent of ingest events, so it
+    # works even when nothing was ingested for the bug.
+    wiki_hit_bugs = {
+        e["bug_id"] for e in pre
+        if e.get("wiki_hit") is True and e.get("bug_id") is not None
+    }
+    wiki_hit_corrected = wiki_hit_bugs & corrected_bugs
 
     return {
         "window_since": since,
@@ -259,6 +280,10 @@ def compute_stats(
             "pending_bug_ids": fc_pending,
         },
         "per_pattern_correction": per_pattern,
+        "wiki_hit_outcome": {
+            "bugs_with_wiki_hit": len(wiki_hit_bugs),
+            "later_corrected": len(wiki_hit_corrected),
+        },
         "has_decisions_log": bool(decisions),
     }
 
@@ -382,6 +407,16 @@ def render_report(s: dict[str, Any], malformed: int = 0) -> str:
               f"{_pct(r['correction_rate']):>6}")
     else:
         w("  (no triage-tagged wiki reads joined to corrections yet)")
+
+    # Wiki-hit outcome (bug-grained false confidence)
+    if s["has_decisions_log"]:
+        who = s["wiki_hit_outcome"]
+        w("\n--- Wiki-Hit Outcome (did wiki-hit bugs get corrected?) ---")
+        if who["bugs_with_wiki_hit"]:
+            w(f"  {who['later_corrected']}/{who['bugs_with_wiki_hit']} bugs whose "
+              "code search hit the wiki were later corrected by a human")
+        else:
+            w("  (no wiki-hit pre_lookup events carried a bug id yet)")
 
     # Recommendations
     w("\n--- Recommendations ---")

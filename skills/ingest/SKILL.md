@@ -1,7 +1,7 @@
 ---
 name: ingest
 description: Extract and store knowledge from a Firefox bug investigation into the wiki. Run after landing a patch. Supports --auto flag for non-interactive hook-triggered operation.
-version: 0.1.0
+version: 0.2.0
 user-invocable: false
 ---
 
@@ -187,6 +187,23 @@ Open `INDEX.md`. For each new page created in Step 3:
 
 Update the "Last updated" date at the top of `INDEX.md` to today's date.
 
+If `$WIKI_PATH/index.json` exists, keep it fresh by upserting a record for each
+new page (the full rebuild happens at the next `/firefox-wiki:lint --full`; this
+just avoids staleness in between). For each new page:
+```bash
+TMP=$(mktemp)
+jq --arg name "$NAME" --arg path "$REL" --arg dir "$DIR" \
+   --arg summary "$ONELINE" --arg conf "$CONF" \
+   '.pages |= ((map(select(.name != $name))) +
+     [{name:$name, path:$path, dir:$dir, summary:$summary, aliases:[],
+       confidence:(if $conf=="" then null else $conf end)}])
+    | .source_index_mtime = (env.IDX_MTIME | tonumber)' \
+   "$WIKI_PATH/index.json" > "$TMP" && mv "$TMP" "$WIKI_PATH/index.json"
+```
+where `IDX_MTIME` is the new mtime of `INDEX.md` (`stat -f %m` / `stat -c %Y`),
+so the freshness guard in `lookup` stays valid. Skip silently if `index.json`
+is absent.
+
 ---
 
 ## Step 6 — VERIFY
@@ -223,6 +240,7 @@ After pushing, check `lint-log.json` for pages overdue for correctness verificat
 Verify intervals by directory:
 - `components/`: 30 days
 - `relations/`: 90 days
+- `architecture/`: 90 days
 - `patterns/`: 180 days
 - `specs/`: 365 days
 - `bugs/`: never
@@ -235,6 +253,7 @@ cat $WIKI_PATH/lint-log.json 2>/dev/null | jq -r '
     (now - (.value["verify-last"] | strptime("%Y-%m-%d") | mktime)) > (
       if (.key | startswith("components/")) then 30
       elif (.key | startswith("relations/")) then 90
+      elif (.key | startswith("architecture/")) then 90
       elif (.key | startswith("patterns/")) then 180
       elif (.key | startswith("specs/")) then 365
       else 99999 end * 86400
@@ -249,7 +268,7 @@ Note: <n> page(s) are overdue for correctness verification:
   components/: <n>  (interval: 30 days)
   relations/:  <n>  (interval: 90 days)
   ...
-Run /firefox-wiki:wiki-verify to check them.
+Run /firefox-wiki:verify to check them.
 ```
 
 If nothing is overdue: print nothing.

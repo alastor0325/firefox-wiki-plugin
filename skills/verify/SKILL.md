@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Periodically verify that facts in the Firefox Knowledge Wiki are still correct by re-reading cited sources. Flags stale or unverifiable claims for human review.
-version: 0.3.0
+version: 0.4.0
 user-invocable: false
 ---
 
@@ -54,7 +54,7 @@ Read `$WIKI_PATH/lint-log.json`:
 cat $WIKI_PATH/lint-log.json 2>/dev/null || echo "{}"
 ```
 
-For each `.md` file under `components/`, `relations/`, `patterns/`, `specs/`:
+For each `.md` file under `components/`, `relations/`, `architecture/`, `patterns/`, `specs/`:
 ```
 TODAY = current date
 verify-last = lint-log[page]["verify-last"] or "1970-01-01" if absent
@@ -69,10 +69,11 @@ else:
 Print the due list before proceeding:
 ```
 Pages due for verification: <n>
-  components/: <n>
-  relations/:  <n>
-  patterns/:   <n>
-  specs/:      <n>
+  components/:   <n>
+  relations/:    <n>
+  architecture/: <n>
+  patterns/:     <n>
+  specs/:        <n>
 ```
 
 ---
@@ -199,7 +200,7 @@ Facts checked: <n>
 **Claim:** <fact text>
 **Source:** <citation>
 **Finding:** <agent explanation of what changed>
-**Action:** Update or remove this fact via `/firefox-wiki:wiki-add`
+**Action:** Update or remove this fact via `/firefox-wiki:add`
 
 </for each>
 

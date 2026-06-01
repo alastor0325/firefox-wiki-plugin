@@ -1,7 +1,7 @@
 ---
 name: add
 description: Add a fact, explanation, or note to the Firefox Knowledge Wiki in natural language. Claude decides which page to update or create.
-version: 0.2.0
+version: 0.3.0
 ---
 
 ## Step 1 — Detect input type
@@ -219,7 +219,7 @@ After pushing, check `lint-log.json` for pages overdue for correctness verificat
 
 ```
 Note: <n> page(s) are overdue for correctness verification.
-Run /firefox-wiki:wiki-verify to check them.
+Run /firefox-wiki:verify to check them.
 ```
 
 ### S8 — Confirm
@@ -422,6 +422,21 @@ Use `[[wiki-links]]` for every component, pattern, or bug name mentioned.
 ```
 
 ### 7. Update INDEX.md if a new page was created
+
+If a new page was created and `$WIKI_PATH/index.json` exists, also upsert its
+record there so tiered lookup stays fresh until the next full lint rebuild:
+```bash
+TMP=$(mktemp)
+jq --arg name "$NAME" --arg path "$REL" --arg dir "$DIR" \
+   --arg summary "$ONELINE" --arg conf "$CONFIDENCE" \
+   '.pages |= ((map(select(.name != $name))) +
+     [{name:$name, path:$path, dir:$dir, summary:$summary, aliases:[],
+       confidence:(if $conf=="" then null else $conf end)}])
+    | .source_index_mtime = (env.IDX_MTIME | tonumber)' \
+   "$WIKI_PATH/index.json" > "$TMP" && mv "$TMP" "$WIKI_PATH/index.json"
+```
+where `IDX_MTIME` is the new mtime of `INDEX.md`. Skip silently if `index.json`
+is absent — `lookup` falls back to `INDEX.md`.
 
 ### 8. Update logs
 

@@ -1,7 +1,7 @@
 ---
 name: init
 description: Initialize the Firefox Knowledge Wiki directory structure. Run once after cloning the wiki content repo.
-version: 0.2.0
+version: 0.3.0
 ---
 
 ## Steps
@@ -18,6 +18,8 @@ Firefox Knowledge Wiki — Pre-flight checks
   [ ] pandoc installed
   [ ] log-wiki-read.sh hook present
   [ ] git user.email configured
+  [ ] wiki-config.json present (search tool + trigger paths)
+  [ ] WIKI_PATH persisted    (only shown when WIKI_PATH is non-default)
 ```
 
 Then run each check in order. For each item, update its status as you go:
@@ -86,7 +88,7 @@ Wait for the user's reply:
 
 ### 5. Check hook script
 
-Check whether `${CLAUDE_PLUGIN_ROOT}scripts/log-wiki-read.sh` exists.
+Check whether `${CLAUDE_PLUGIN_ROOT}/scripts/log-wiki-read.sh` exists.
 
 If **not found**, mark `[✗]` and warn (non-blocking — continue):
 
@@ -123,6 +125,9 @@ Run `mkdir -p` for each of the following (it is safe to run even if they already
 - `$WIKI_PATH/components/`
 - `$WIKI_PATH/relations/`
 - `$WIKI_PATH/patterns/`
+- `$WIKI_PATH/architecture/`
+- `$WIKI_PATH/triage/`
+- `$WIKI_PATH/profiler/`
 - `$WIKI_PATH/bugs/`
 
 ### 8. Create files if they do not already exist
@@ -185,9 +190,58 @@ Last updated: (today's date)
 See [[log.md]] for full history.
 ```
 
-### 9. Check wiki maintenance instruction
+### 9. Configure the trigger surface (`wiki-config.json`)
 
-This step ensures the wiki write-back rule is active in the user's global Claude config. It is **non-blocking** — if the user declines, continue to step 9.
+This file lives in the wiki repo and controls which code searches trigger the pre-lookup hook. It travels with the wiki, so a personal wiki for another subsystem (e.g. graphics) carries its own trigger paths. Defaults reproduce the original Firefox-media behavior.
+
+**If `$WIKI_PATH/wiki-config.json` does not exist**, prompt the user (pressing Enter accepts the defaults shown):
+
+```
+Configure the wiki trigger surface (press Enter for defaults):
+
+  Search tool that fires the pre-lookup hook [searchfox-cli]:
+  Source paths to watch, space-separated [dom/media]:
+```
+
+Then write it (substituting the answers; `$TRIGGER_PATHS` is the space-separated reply):
+
+```bash
+jq -n --arg st "${SEARCH_TOOL:-searchfox-cli}" --arg tp "${TRIGGER_PATHS:-dom/media}" \
+  '{schema:1, search_tool:$st,
+    trigger_paths:($tp|split(" ")|map(select(length>0))),
+    source_repo_pattern:"(mozilla-central|gecko|mozilla-firefox/firefox)"}' \
+  > "$WIKI_PATH/wiki-config.json"
+```
+
+**If it already exists**, show the current values with `jq . "$WIKI_PATH/wiki-config.json"` and ask whether to update. Only on confirmation, merge **without clobbering** unknown keys (preserves `source_repo_pattern` and any future fields):
+
+```bash
+jq --arg st "$SEARCH_TOOL" --argjson tp "$TRIGGER_PATHS_JSON" \
+   '.search_tool=$st | .trigger_paths=$tp' \
+   "$WIKI_PATH/wiki-config.json" > "$WIKI_PATH/wiki-config.json.tmp" \
+   && mv "$WIKI_PATH/wiki-config.json.tmp" "$WIKI_PATH/wiki-config.json"
+```
+
+Mark `[✓]` in the checklist. Changes take effect immediately (hooks read the file live).
+
+### 10. Persist WIKI_PATH (only when it is non-default)
+
+Skip this step entirely when the resolved `WIKI_PATH` equals `$HOME/firefox-wiki`.
+
+Hooks read `WIKI_PATH` from the environment. Claude Code populates the hook environment from the `env` block of `~/.claude/settings.json` at startup — a shell-profile `export` is unreliable because hooks may run under a GUI/launchd-spawned process that never sourced your profile. So persist it there. Offer to do it, and on confirmation merge without clobbering existing settings:
+
+```bash
+SETTINGS="$HOME/.claude/settings.json"
+[[ -f "$SETTINGS" ]] || echo '{}' > "$SETTINGS"
+jq --arg p "$WIKI_PATH" '.env = (.env // {}) | .env.WIKI_PATH = $p' \
+   "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
+```
+
+Tell the user this **takes effect in the next Claude Code session** (the `env` block is read at startup), and print the value so they can instead `export WIKI_PATH=<path>` in the shell they launch Claude Code from if they prefer. Mark `[✓]`.
+
+### 11. Check wiki maintenance instruction
+
+This step ensures the wiki write-back rule is active in the user's global Claude config. It is **non-blocking** — if the user declines, continue to the status report.
 
 The wiki maintenance paragraph to check for / add is:
 
@@ -240,13 +294,15 @@ Also update the pre-flight checklist in step 0 to include this item:
   [ ] Wiki maintenance instruction active
 ```
 
-### 10. Print a status report
+### 12. Print a status report
 
 ```
-Firefox Knowledge Wiki initialized at: ~/firefox-wiki/
+Firefox Knowledge Wiki initialized at: <WIKI_PATH>
 
-Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ bugs/
+Directories: ✓ specs/ ✓ platform/ ✓ others/ ✓ components/ ✓ relations/ ✓ patterns/ ✓ architecture/ ✓ triage/ ✓ profiler/ ✓ bugs/
 Files:       ✓ INDEX.md  ✓ log.md  ✓ glossary.md  ✓ usage-log.jsonl
+Config:      ✓ wiki-config.json (search_tool=<tool>, trigger_paths=<paths>)
+WIKI_PATH:   <default ~/firefox-wiki | <path> — persisted to settings.json (restart to apply) | <path> — from environment>
 User:        <email from git config | ✗ not set — run: git config --global user.email "you@mozilla.com">
 Maintenance: <✓ active in AGENTS.md | ✓ active in ~/.claude/CLAUDE.md | – skipped>
 

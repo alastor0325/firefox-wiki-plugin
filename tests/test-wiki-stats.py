@@ -46,7 +46,7 @@ def check(desc, cond, detail=""):
 # So bug-start: 3 instances, 2 consulted (B1,B2) -> 66.7% coverage.
 EVENTS = [
     {"event_type": "session_start", "skill": "bug-start", "instance_id": "B1", "args": "2042862", "date": "2026-05-30T10:00:00Z"},
-    {"event_type": "pre_lookup", "skill": "bug-start", "instance_id": "B1", "term": "AutoplayPolicy", "wiki_hit": True, "date": "2026-05-30T10:01:00Z"},
+    {"event_type": "pre_lookup", "skill": "bug-start", "instance_id": "B1", "term": "AutoplayPolicy", "wiki_hit": True, "bug_id": 2042862, "date": "2026-05-30T10:01:00Z"},
     {"event_type": "wiki_read", "skill": "bug-start", "instance_id": "B1", "file": "components/AutoplayPolicy.md", "date": "2026-05-30T10:01:30Z"},
 
     {"event_type": "session_start", "skill": "bug-start", "instance_id": "B2", "args": "2040167", "date": "2026-05-30T11:00:00Z"},
@@ -65,6 +65,7 @@ EVENTS = [
 ]
 DECISIONS = [
     {"event": "apply-feedback", "bug_id": 2042320, "ts": "2026-05-31T09:00:00Z"},
+    {"event": "apply-feedback", "bug_id": 2042862, "ts": "2026-05-31T09:05:00Z"},
 ]
 WIKI_PAGES = [
     "components/AutoplayPolicy.md",   # read
@@ -139,6 +140,26 @@ check("pattern chrome-ua: 1 session, 1 corrected -> 100%",
       and pp["triage/chrome-ua.md"]["correction_rate"] == 1.0,
       detail=str(pp.get("triage/chrome-ua.md")))
 
+# ─── Wiki-hit outcome: B1's hit was for bug 2042862, which was corrected ─
+who = s["wiki_hit_outcome"]
+check("wiki_hit_outcome: 1 wiki-hit bug, 1 later corrected",
+      who["bugs_with_wiki_hit"] == 1 and who["later_corrected"] == 1,
+      detail=str(who))
+
+# ─── instance_bug backfill from event bug_id (no session_start) ──────
+# A triage wiki_read tagged with bug_id but no session_start should still
+# join to the correction via the backfill path.
+backfill = compute_stats(
+    [{"event_type": "wiki_read", "skill": "triage", "instance_id": "X1",
+      "file": "triage/some-pattern.md", "bug_id": 777, "date": "2026-05-30T10:00:00Z"}],
+    decisions=[{"event": "apply-feedback", "bug_id": 777}],
+)
+bp = {r["pattern"]: r for r in backfill["per_pattern_correction"]}
+check("backfill: pattern corrected via event bug_id (no session_start)",
+      bp["triage/some-pattern.md"]["sessions"] == 1
+      and bp["triage/some-pattern.md"]["corrected"] == 1,
+      detail=str(bp.get("triage/some-pattern.md")))
+
 # ─── _first_int helper ───────────────────────────────────────────────
 check("_first_int from '2042862 --triage-mode'",
       _first_int("2042862 --triage-mode") == 2042862)
@@ -152,6 +173,9 @@ check("empty input: hit rate None",
       empty["overall_hit_rate"]["rate"] is None)
 check("empty input: no decisions log flag",
       empty["has_decisions_log"] is False)
+check("empty input: wiki_hit_outcome zeroed",
+      empty["wiki_hit_outcome"]["bugs_with_wiki_hit"] == 0
+      and empty["wiki_hit_outcome"]["later_corrected"] == 0)
 
 # ─── Malformed-line tolerance in load_jsonl ──────────────────────────
 import tempfile

@@ -1,7 +1,7 @@
 ---
 name: lint
 description: Check Firefox Knowledge Wiki integrity. Use --lightweight after writes (automatic) or --full to run all due accuracy checks based on per-page lint intervals.
-version: 0.7.0
+version: 0.8.0
 user-invocable: false
 ---
 
@@ -336,10 +336,77 @@ jq --arg page "components/AudioSink.md" \
    && mv /tmp/lint-log-new.json $WIKI_PATH/lint-log.json
 ```
 
-Repeat for each checked page, then commit once:
+Repeat for each checked page, then commit once (together with the derived
+artifacts regenerated below):
 ```bash
-cd $WIKI_PATH && git add lint-log.json && git commit -m "wiki: lint run $(date +%Y-%m-%d)"
+cd $WIKI_PATH && git add lint-log.json aliases.txt index.json \
+  && git commit -m "wiki: lint run $(date +%Y-%m-%d)"
 ```
+
+---
+
+## Regenerate derived artifacts (full/force mode only)
+
+After the checks, rebuild two **derived, machine-readable** files that speed up
+the hooks and the `lookup` skill. They are caches — `INDEX.md` and `glossary.md`
+remain authoritative, and both consumers fall back gracefully if these files are
+missing or stale. Run this only in `--full` / `--force` mode (skip in
+lightweight and single-page modes). Write each atomically (`mktemp` + `mv`).
+
+### aliases.txt — abbreviation expansion for the pre-lookup hook
+
+Parse `$WIKI_PATH/glossary.md`. For every abbreviation line of the form
+`- **KEY**: VALUE`, keep the pair **only when VALUE is a single identifier
+token** — it matches `^[A-Za-z][A-Za-z0-9]*$` and is ≤40 chars. This captures
+`- **MFR**: MediaFormatReader` and skips prose entries like
+`- **GHLG**: Microsoft's token...`. Emit **both directions**, one
+`key<TAB>expansion` per line:
+
+```
+MFR	MediaFormatReader
+MediaFormatReader	MFR
+MDSM	MediaDecoderStateMachine
+MediaDecoderStateMachine	MDSM
+```
+
+The pre-lookup hook reads this with a fixed-string `grep -iF` per candidate, so
+the format must stay tab-separated with no surrounding whitespace. Write to a
+temp file then `mv` into place.
+
+### index.json — compact index for tiered lookup
+
+Build one record per page listed in `INDEX.md`'s tables (Components, Relations,
+Bugs, Patterns, Specs, Triage, Profiler). Schema:
+
+```json
+{ "schema": 1,
+  "generated": "<ISO 8601>",
+  "source_index_mtime": <int mtime of INDEX.md>,
+  "pages": [
+    { "name": "MediaFormatReader",
+      "path": "components/MediaFormatReader.md",
+      "dir": "components",
+      "summary": "<the role/description column from the INDEX table row>",
+      "aliases": ["MFR"],
+      "confidence": "High" } ] }
+```
+
+For each `[[link]]` row:
+- `name` = the link text (bare) or its last path segment for `dir/slug` links.
+- `path` = resolve bare names with `find $WIKI_PATH -name "<name>.md"` (first
+  hit); use `dir/slug.md` verbatim for qualified links.
+- `dir` = top-level directory of `path`.
+- `summary` = the description/role column already present in the INDEX table row
+  (cheapest and curated). Only when a row has no description, fall back to the
+  page's first non-heading sentence.
+- `confidence` = highest inline tag found on the page (`[High]` > `[Medium]` >
+  `[Low]`), else `null`.
+- `aliases` = every `key` in `aliases.txt` whose expansion equals `name`.
+
+Set `source_index_mtime` from `stat -f %m "$WIKI_PATH/INDEX.md"` (macOS) or
+`stat -c %Y` (Linux) — this is the freshness guard `lookup` compares against.
+Write atomically. A half-written or unparseable `index.json` is harmless: both
+consumers treat it as absent and fall back to `INDEX.md`.
 
 ---
 
