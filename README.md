@@ -6,19 +6,34 @@ Without this plugin, Claude re-searches the same components, re-reads the same f
 
 > **The wiki content is maintained in a shared private repo.** You need access to get the accumulated knowledge — without it you start from an empty wiki and lose the team's prior learnings. Request access from :alwu (alwu@mozilla.com) before installing.
 
-## What you get automatically
+## How it works
 
-Once installed, no ongoing effort is required.
+The whole plugin is one idea: **read the wiki before doing code archaeology, write back what you learn after.** You never run anything — hooks do both halves automatically, so each bug starts from everything earlier bugs taught Claude instead of re-deriving it.
 
-**Before every code search** — when Claude is about to run the configured search tool (`searchfox-cli` by default, with `--define`, `--id`, `--symbol`, `--calls-from`, `--calls-to`, `--field-layout`, or `-q`) or grep under a watched source path (`dom/media` by default), a hook scans the wiki first. It expands the query with the abbreviation map (`MDSM` → `MediaDecoderStateMachine`) and splits qualified names (`Foo::Bar` → `Foo`, `Bar`) so a hit isn't missed on jargon. If it finds relevant prior knowledge, Claude reads it and may skip the code search entirely. The search tool and watched paths are configurable per wiki — see [Configuration](#configuration).
+```mermaid
+flowchart LR
+    Bug["You work a bug<br/>(investigate · triage · review)"]
+    W[("Firefox Wiki")]
+    Bug -->|"① before searching code,<br/>a hook checks the wiki"| W
+    W -->|"if known: read cited facts,<br/>often skip the search"| Bug
+    Bug -->|"② on commit, a hook writes<br/>back what was learned"| W
+    W -->|"next bug starts<br/>from prior knowledge"| Bug
+```
 
-**After every patch** — when Claude commits in a Firefox repo, a hook fires and extracts knowledge from the changes, storing it in the wiki for future sessions.
+### The four hooks, in plain terms
 
-**After every wiki write** — a hook runs a lightweight lint pass to catch broken links and stale references.
+| When it fires | What it does for you |
+|---|---|
+| **Before** a code search (`searchfox-cli`, or `grep` under a watched path) | Checks the wiki first. If it has the answer, Claude reads the cited facts and may skip the search. Query terms are alias- and `Class::Method`-expanded, so jargon like `MDSM` still finds `MediaDecoderStateMachine`. |
+| **After** a commit in a source repo | Reads the diff/investigation, extracts the durable facts, and saves them for next time. |
+| **After** any write to the wiki | A quick lint pass flags broken links and stale references. |
+| **During** a tracked skill (`bug-start`, `triage`, `review-patch`, `analyze-profile`, …) | Tags any wiki use with that skill, so `/firefox-wiki:stats` can tell you *which kinds of work* actually consult the wiki. |
 
-**During every tracked skill** — when Claude invokes a code-touching skill (`bug-start`, `triage`, `review-patch`, `analyze-profile`, and others), a hook records it as the session's current skill, and any wiki lookups that follow are tagged with it. This lets `/firefox-wiki:stats` answer not just "was the wiki consulted?" overall, but "which kinds of work consult it, and which run without it." The tracked-skill list lives in [`scripts/wiki-relevant-skills.txt`](scripts/wiki-relevant-skills.txt) — one name per line, edit to add or remove.
+That's it — install it and work normally; the loop runs in the background.
 
-You can also add knowledge manually at any time — spec URLs, bug learnings, or free-form facts — using `/firefox-wiki:add`. See [Commands](#commands) for details.
+Two manual levers when you want them:
+- **Add knowledge yourself** — a spec URL, a bug, or a plain fact — with `/firefox-wiki:add`.
+- **Tune what triggers the hooks** (search tool, watched paths) and **where the wiki lives** — see [Configuration](#configuration). The tracked-skill list is [`scripts/wiki-relevant-skills.txt`](scripts/wiki-relevant-skills.txt) (one name per line).
 
 ## Install
 
