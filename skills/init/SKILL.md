@@ -1,7 +1,7 @@
 ---
 name: init
-description: Initialize the Firefox Knowledge Wiki directory structure. Run once after cloning the wiki content repo.
-version: 0.3.0
+description: Initialize the Firefox Knowledge Wiki. Scaffolds a fresh personal wiki at $WIKI_PATH if none exists yet, or sets up an existing/cloned one. Run once.
+version: 0.4.0
 ---
 
 ## Steps
@@ -13,7 +13,7 @@ Before doing anything, print this checklist so the user can see what will be ver
 ```
 Firefox Knowledge Wiki — Pre-flight checks
 
-  [ ] Wiki content repo cloned at ~/firefox-wiki/
+  [ ] Wiki at ~/firefox-wiki/ (existing, or scaffold a fresh personal one)
   [ ] jq installed
   [ ] pandoc installed
   [ ] log-wiki-read.sh hook present
@@ -30,25 +30,28 @@ Then run each check in order. For each item, update its status as you go:
 
 Use the `$WIKI_PATH` environment variable if set; otherwise default to `~/firefox-wiki/`.
 
-### 2. Check wiki content repo
+### 2. Existing wiki, or scaffold a fresh personal one
 
-Check whether `$WIKI_PATH/INDEX.md` exists.
+Check whether `$WIKI_PATH/INDEX.md` exists. **Either way, continue** — this is the
+fork between *using* a wiki that's already there and *creating* a new one:
 
-If **not found**, mark `[✗]` and stop with:
+- **Found** → an existing wiki (a cloned team repo, or one you set up before).
+  Mark `[✓]` and continue. The steps below are idempotent and never overwrite
+  existing content.
 
-```
-Firefox Knowledge Wiki content not found at ~/firefox-wiki/.
+- **Not found** → this is a **new, personal wiki**, which is fully supported. Do
+  **not** stop. The steps below scaffold an empty wiki at `$WIKI_PATH` — the
+  directory structure plus a starter `INDEX.md`, `glossary.md`, and
+  `wiki-config.json` — that you build up as you work. Mark
+  `[✓ — scaffolding a new wiki]` and continue.
 
-Please clone the wiki repo first:
-
-  git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
-
-Note: this is a private repo. If you don't have access, contact :alwu (alwu@mozilla.com) to request it.
-
-Once cloned, re-run /firefox-wiki:init.
-```
-
-Do not proceed further.
+  > Wanted the **shared team wiki** instead? It lives in a separate **private**
+  > repo — request access from :alwu (alwu@mozilla.com), then clone it to
+  > `$WIKI_PATH` and re-run init:
+  > `git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki`
+  >
+  > Tip: a fresh personal wiki is just a directory. To version or share it later,
+  > `git init "$WIKI_PATH"` and commit — nothing else needs it to be a git repo.
 
 ### 3. Check jq
 

@@ -5,7 +5,7 @@ firefox-implementation
 review-patch
 review-feedback
 analyze-profile
-check-firefox-log
+check-log
 ci-failure-analysis
 update-investigation
 verify
