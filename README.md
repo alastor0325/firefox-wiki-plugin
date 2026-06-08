@@ -37,25 +37,27 @@ Two manual levers when you want them:
 
 ## Install
 
-Run these commands in your terminal (not in the Claude Code prompt):
+Run these commands in your terminal (not in the Claude Code prompt).
 
-**1. Clone this plugin repo:**
+**1. Install the plugin** — directly from GitHub, no clone needed:
 ```bash
-git clone https://github.com/alastor0325/firefox-wiki-plugin ~/firefox-wiki-plugin
-```
-
-**2. Register and install the plugin:**
-```bash
-claude plugin marketplace add ~/firefox-wiki-plugin
+claude plugin marketplace add alastor0325/firefox-wiki-plugin
 claude plugin install firefox-wiki@firefox-wiki-plugin
 ```
+> Prefer a local copy to read or hack on? Clone it first and point the
+> marketplace at the clone instead:
+> `git clone https://github.com/alastor0325/firefox-wiki-plugin ~/firefox-wiki-plugin && claude plugin marketplace add ~/firefox-wiki-plugin`
 
-**3. Clone the wiki content repo:**
+**2. Point it at a wiki** — the plugin is the *tooling*; the *content* is a
+separate git repo. Shared vs. personal is only which repo `WIKI_PATH` names
+(default `~/firefox-wiki`):
 ```bash
+# A shared team wiki — clone its content repo (request access; it's private):
 git clone https://github.com/alastor0325/firefox-wiki ~/firefox-wiki
+# …or your OWN wiki — set WIKI_PATH to your repo (or a fresh dir); init scaffolds it.
 ```
 
-**4. Initialize** (in Claude Code):
+**3. Initialize** (in Claude Code):
 ```
 /firefox-wiki:init
 ```
