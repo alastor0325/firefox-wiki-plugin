@@ -24,6 +24,7 @@ run() {
   echo
 }
 
+run "test-scaffold.sh"           bash    "$DIR/test-scaffold.sh"
 run "test-wiki-config.sh"        bash    "$DIR/test-wiki-config.sh"
 run "test-pre-lookup.sh"         bash    "$DIR/test-pre-lookup.sh"
 run "test-triggers.sh"           bash    "$DIR/test-triggers.sh"
