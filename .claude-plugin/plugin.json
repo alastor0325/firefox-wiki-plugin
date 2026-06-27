@@ -1,7 +1,7 @@
 {
   "name": "firefox-wiki",
   "description": "Firefox Knowledge Wiki — persistent knowledge base with automatic ingest, lookup, lint, and monitoring hooks",
-  "version": "0.10.3",
+  "version": "0.10.4",
   "author": { "name": "Alastor Wu" },
   "repository": "https://github.com/alastor0325/firefox-wiki-plugin"
 }

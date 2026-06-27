@@ -1,7 +1,7 @@
 ---
 name: ingest
 description: Extract and store knowledge from a Firefox bug investigation into the wiki. Run after landing a patch. Supports --auto flag for non-interactive hook-triggered operation.
-version: 0.2.0
+version: 0.2.1
 user-invocable: false
 ---
 
@@ -46,7 +46,11 @@ When this skill is invoked, follow the protocol below exactly. First, detect the
 
 ## Step 0 — Guard (auto mode only)
 
-In auto mode, verify this is a Firefox repository commit before doing anything else:
+**If `$WIKI_BUG_ID` is set, skip this guard entirely** — it names an explicit
+bug to ingest (a backfill target), so the source is that bug's investigation
+file, not the current commit, and the cwd's git remote is irrelevant.
+
+Otherwise, in auto mode, verify this is a Firefox repository commit before doing anything else:
 
 Run `git remote get-url origin` in the current working directory.
 
@@ -58,6 +62,10 @@ If the remote URL does not contain any of `mozilla-central`, `firefox`, or `geck
 
 Determine the bug ID:
 
+- **If `$WIKI_BUG_ID` is set, use it verbatim as the bug ID** (an explicit
+  target — used to backfill a historical bug non-interactively, e.g. a sequential
+  loop of `WIKI_BUG_ID=<id> claude -p "/firefox-wiki:ingest --auto"`). Do not
+  parse the commit; the source is `~/firefox-bug-investigation/bug-{id}-investigation.md`.
 - In interactive mode: ask "Which bug ID should I ingest? (or provide the path to an investigation file)"
 - In auto mode: parse the most recent git commit message for a `Bug XXXXXXX` pattern. If no bug ID is found, exit silently.
 
