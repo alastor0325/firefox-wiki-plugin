@@ -1,13 +1,21 @@
 #!/bin/bash
-# PostToolUse(Bash) hook: trigger /firefox-wiki:ingest --auto after git commits
-# to mozilla-central or similar Firefox repos (not the wiki repo itself).
+# PostToolUse(Bash) hook: trigger /firefox-wiki:ingest --auto after a commit is
+# created/finalized in a Firefox repo (not the wiki repo itself).
+#
+# Matches `git commit` AND the jj equivalents (`jj commit` / `jj describe`): the
+# Firefox patch workflow is jj-based (colocated jj+git), so commits are made
+# through jj and a `git commit`-only gate silently stops firing the moment the
+# workflow switches to jj. `jj new` is intentionally NOT matched — it opens an
+# empty change (nothing to ingest yet). ingest --auto parses the *latest commit
+# message* for the bug id and skips already-known facts, so re-firing across a jj
+# patch stack (multiple describe/commit calls) is idempotent — redundant at worst.
 
 set -euo pipefail
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
 
-echo "$COMMAND" | grep -q "git commit" || exit 0
+echo "$COMMAND" | grep -qE 'git commit|jj (commit|describe)' || exit 0
 
 # Load shared config helpers (resolves WIKI_PATH, provides wiki_cfg). Defensive
 # shim reproduces the original hardcoded source pattern if the lib is missing.

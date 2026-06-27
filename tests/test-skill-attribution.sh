@@ -74,18 +74,18 @@ read_wiki components/AutoplayPolicy.md
     || bad "wiki_read inherits instance_id" "got=$(last_read_iid) want=$slot_iid"
 
 # --- 3. a second skill overwrites the slot (sequential) -----------------
-start_skill review-patch
+start_skill review
 got=$(bash "$ACTIVE" "$SID" | awk '{print $2}')
-[[ "$got" == "review-patch" ]] && ok "second skill overwrites slot" \
+[[ "$got" == "review" ]] && ok "second skill overwrites slot" \
     || bad "second skill overwrites slot" "current=$got"
 read_wiki components/AutoplayPolicy.md
-[[ "$(last_read_skill)" == "review-patch" ]] && ok "wiki_read now attributes to review-patch" \
-    || bad "wiki_read now attributes to review-patch" "got=$(last_read_skill)"
+[[ "$(last_read_skill)" == "review" ]] && ok "wiki_read now attributes to review" \
+    || bad "wiki_read now attributes to review" "got=$(last_read_skill)"
 
 # --- 4. non-allowlisted skill does NOT change the slot ------------------
 start_skill some-random-skill
 got=$(bash "$ACTIVE" "$SID" | awk '{print $2}')
-[[ "$got" == "review-patch" ]] && ok "non-allowlisted skill leaves slot unchanged" \
+[[ "$got" == "review" ]] && ok "non-allowlisted skill leaves slot unchanged" \
     || bad "non-allowlisted skill leaves slot unchanged" "current=$got"
 
 # --- 5. no current skill before any skill-start → skill:null ------------
@@ -98,7 +98,7 @@ read_wiki components/AutoplayPolicy.md "$SID2"
 start_skill analyze-profile "" "$SID2"
 got_b=$(bash "$ACTIVE" "$SID2" | awk '{print $2}')
 got_a=$(bash "$ACTIVE" "$SID" | awk '{print $2}')
-[[ "$got_b" == "analyze-profile" && "$got_a" == "review-patch" ]] \
+[[ "$got_b" == "analyze-profile" && "$got_a" == "review" ]] \
     && ok "sessions are isolated" \
     || bad "sessions are isolated" "A=$got_a B=$got_b"
 

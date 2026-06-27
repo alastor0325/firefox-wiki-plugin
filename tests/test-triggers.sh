@@ -96,6 +96,23 @@ check "ingest-trigger: ignores non-commit command" \
 check "ingest-trigger: fires for source-repo commit" \
   "$(grep -q 'ingest --auto' "$TMP/claude-calls.log" && echo 0 || echo 1)"
 
+# jj workflow: the Firefox patch flow is jj-based, so the trigger must also fire
+# for `jj commit` / `jj describe` (not just `git commit`) — `jj new` must NOT fire.
+: > "$TMP/claude-calls.log"
+( cd "$SRC" && echo '{"tool_input":{"command":"jj describe -m wip"}}' | WIKI_PATH="$WG" bash "$ING" )
+check "ingest-trigger: fires for a jj describe (jj workflow)" \
+  "$(grep -q 'ingest --auto' "$TMP/claude-calls.log" && echo 0 || echo 1)"
+
+: > "$TMP/claude-calls.log"
+( cd "$SRC" && echo '{"tool_input":{"command":"jj commit -m wip"}}' | WIKI_PATH="$WG" bash "$ING" )
+check "ingest-trigger: fires for a jj commit" \
+  "$(grep -q 'ingest --auto' "$TMP/claude-calls.log" && echo 0 || echo 1)"
+
+: > "$TMP/claude-calls.log"
+( cd "$SRC" && echo '{"tool_input":{"command":"jj new main"}}' | WIKI_PATH="$WG" bash "$ING" )
+check "ingest-trigger: ignores 'jj new' (empty change, nothing to ingest)" \
+  "$([[ ! -s "$TMP/claude-calls.log" ]] && echo 0 || echo 1)"
+
 : > "$TMP/claude-calls.log"
 ( cd "$WG" && echo "$COMMIT" | WIKI_PATH="$WG" bash "$ING" )
 check "ingest-trigger: self-excludes commit in the wiki repo (pwd -P)" \

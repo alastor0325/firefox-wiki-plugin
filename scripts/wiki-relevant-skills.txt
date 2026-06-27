@@ -2,7 +2,7 @@ bug-start
 triage
 triage-apply-feedback
 firefox-implementation
-review-patch
+review
 review-feedback
 analyze-profile
 check-log
